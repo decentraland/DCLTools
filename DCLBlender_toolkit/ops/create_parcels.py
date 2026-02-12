@@ -23,8 +23,6 @@ class OBJECT_OT_create_parcels(bpy.types.Operator):
         max=20,
     )
 
-
-
     def execute(self, context):
         # Fixed parcel size for Decentraland
         parcel_size = 16.0
@@ -33,89 +31,63 @@ class OBJECT_OT_create_parcels(bpy.types.Operator):
         total_width = self.parcels_x * parcel_size
         total_height = self.parcels_y * parcel_size
         
-        # Create collection for parcels
+        # Create/replace collection for parcels
         collection_name = f"Parcels_{self.parcels_x}x{self.parcels_y}"
         if collection_name in bpy.data.collections:
-            # Delete existing collection and all its objects
             existing_collection = bpy.data.collections[collection_name]
             for obj in list(existing_collection.objects):
                 bpy.data.objects.remove(obj, do_unlink=True)
             bpy.data.collections.remove(existing_collection)
-            self.report({'INFO'}, f"Removed existing collection: {collection_name}")
         
         parcels_collection = bpy.data.collections.new(collection_name)
         context.scene.collection.children.link(parcels_collection)
         
+        # Create mesh data and object directly (no bpy.ops)
+        mesh = bpy.data.meshes.new(f"Parcels_Grid_{self.parcels_x}x{self.parcels_y}")
+        parcels_obj = bpy.data.objects.new(f"Parcels_Grid_{self.parcels_x}x{self.parcels_y}", mesh)
         
-        # Create single subdivided plane for all parcels
-        bpy.ops.mesh.primitive_plane_add(
-            location=(0, 0, 0),
-            size=1.0  # Start with 1m plane
-        )
+        # Link only to the parcels collection (not the scene collection)
+        parcels_collection.objects.link(parcels_obj)
         
-        parcels_plane = context.active_object
-        parcels_plane.name = f"Parcels_Grid_{self.parcels_x}x{self.parcels_y}"
-        
-        # Scale to total dimensions
-        parcels_plane.scale = (total_width, total_height, 1.0)
-        
-        # Apply scale to freeze it at (1,1,1)
-        bpy.context.view_layer.objects.active = parcels_plane
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        
-        # Build the parcel grid mesh using standalone bmesh (in object mode)
+        # Build the parcel grid with bmesh
+        # Each face = one 16m x 16m parcel
         bm = bmesh.new()
         
-        # Create grid vertices
         vertices = []
         for y in range(self.parcels_y + 1):
             for x in range(self.parcels_x + 1):
-                # Calculate position
-                pos_x = (x / self.parcels_x) - 0.5
-                pos_y = (y / self.parcels_y) - 0.5
-                pos_z = 0.0
-                
-                # Scale to actual dimensions
-                pos_x *= total_width
-                pos_y *= total_height
-                
-                # Create vertex
-                vert = bm.verts.new((pos_x, pos_y, pos_z))
+                pos_x = (x / self.parcels_x - 0.5) * total_width
+                pos_y = (y / self.parcels_y - 0.5) * total_height
+                vert = bm.verts.new((pos_x, pos_y, 0.0))
                 vertices.append(vert)
         
-        # Create faces
+        # Create faces - one per parcel
+        cols = self.parcels_x + 1
         for y in range(self.parcels_y):
             for x in range(self.parcels_x):
-                # Calculate vertex indices
-                v1 = vertices[y * (self.parcels_x + 1) + x]
-                v2 = vertices[y * (self.parcels_x + 1) + x + 1]
-                v3 = vertices[(y + 1) * (self.parcels_x + 1) + x + 1]
-                v4 = vertices[(y + 1) * (self.parcels_x + 1) + x]
-                
-                # Create face
+                v1 = vertices[y * cols + x]
+                v2 = vertices[y * cols + x + 1]
+                v3 = vertices[(y + 1) * cols + x + 1]
+                v4 = vertices[(y + 1) * cols + x]
                 bm.faces.new([v1, v2, v3, v4])
         
-        # Write bmesh to mesh data and free
-        bm.to_mesh(parcels_plane.data)
+        # Write bmesh to mesh and free
+        bm.to_mesh(mesh)
         bm.free()
-        parcels_plane.data.update()
+        mesh.update()
         
-        # Add to collection
-        parcels_collection.objects.link(parcels_plane)
-        # Note: Newly created objects are not initially in scene collection, so no need to unlink
-        
-        
-        # Select the parcels plane
-        bpy.ops.object.select_all(action='DESELECT')
-        for obj in parcels_collection.objects:
-            obj.select_set(True)
+        # Make it the active selected object
+        context.view_layer.objects.active = parcels_obj
+        parcels_obj.select_set(True)
         
         # Center view on parcels
-        bpy.ops.view3d.view_selected()
+        try:
+            bpy.ops.view3d.view_selected()
+        except RuntimeError:
+            pass
         
-        self.report({'INFO'}, f"Created subdivided plane with {self.parcels_x}x{self.parcels_y} parcels ({total_width}m x {total_height}m)")
+        self.report({'INFO'}, f"Created {self.parcels_x}x{self.parcels_y} parcel grid ({total_width}m x {total_height}m) - each face is one 16m x 16m parcel")
         return {'FINISHED'}
-
 
     def draw(self, context):
         layout = self.layout

@@ -215,7 +215,9 @@ class OBJECT_OT_remove_source_material_from_list(bpy.types.Operator):
     bl_label = "Remove Source Material"
     bl_options = {'INTERNAL'}
 
-    item_index: bpy.props.IntProperty()    def execute(self, context):
+    item_index: bpy.props.IntProperty()
+
+    def execute(self, context):
         # Store the index to remove
         wm = context.window_manager
         if hasattr(bpy.types.WindowManager, 'replace_materials_remove'):
