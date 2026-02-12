@@ -142,8 +142,12 @@ class OBJECT_OT_resize_textures(bpy.types.Operator):
                     if image.size[0] == target_size_int and image.size[1] == target_size_int:
                         print(f"✓ Resize successful!")
                         
-                        # Update name
-                        image.name = f"{original_name}_{target_size_int}x{target_size_int}"
+                        # Update name - insert size before extension
+                        name_base, name_ext = os.path.splitext(original_name)
+                        if name_ext.lower() in ('.png', '.jpg', '.jpeg', '.tga', '.bmp', '.tiff', '.exr', '.hdr'):
+                            image.name = f"{name_base}_{target_size_int}x{target_size_int}{name_ext}"
+                        else:
+                            image.name = f"{original_name}_{target_size_int}x{target_size_int}"
                         
                         # Save the resized image to disk using Blender's render system
                         if original_filepath:
