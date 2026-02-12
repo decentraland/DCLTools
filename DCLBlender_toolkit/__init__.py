@@ -8,12 +8,10 @@ bl_info = {
     "category": "Object",
 }
 
-# Logo files: 
-# - assets/dcl-logo-mono.svg (original)
-# - assets/dcl-logo-new.svg (new landscape design)
-
 import bpy
 from bpy.utils import register_class, unregister_class
+
+from . import icon_loader
 
 from .ops.remove_uvs import OBJECT_OT_remove_uvs_from_colliders
 from .ops.strip_materials import OBJECT_OT_strip_materials_from_colliders
@@ -44,13 +42,40 @@ from .ops.clean_unused_materials import OBJECT_OT_clean_unused_materials
 from .ops.validate_textures import OBJECT_OT_validate_textures
 from .ops.validate_scene import OBJECT_OT_validate_scene
 from .ops.batch_rename import OBJECT_OT_batch_rename
-from .ops.generate_lod import OBJECT_OT_generate_lod, draw_lod_panel  # noqa: F401
+from .ops.generate_lod import OBJECT_OT_generate_lod, draw_lod_panel
 from .ops.quick_export_gltf import OBJECT_OT_quick_export_gltf
 
-def load_custom_icon():
-    """Load custom Decentraland logo as Blender icon"""
-    # Use a tool-type icon that represents the add-on's functionality
-    return 'TOOL_SETTINGS'
+
+# ---------------------------------------------------------------------------
+# Helper: draw a collapsible section header
+# ---------------------------------------------------------------------------
+
+def _section_header(layout, scene, prop_name, label):
+    """Draw a collapsible section box and return (box, is_expanded)."""
+    box = layout.box()
+    row = box.row()
+    expanded = getattr(scene, prop_name)
+    row.prop(
+        scene, prop_name,
+        text=label,
+        icon='TRIA_DOWN' if expanded else 'TRIA_RIGHT',
+        emboss=False,
+    )
+    return box, expanded
+
+
+def _op(target, bl_idname, text, icon_name, fallback_icon):
+    """Draw an operator button using a custom Tabler icon if available, otherwise fallback."""
+    ico = icon_loader.get_icon(icon_name)
+    if ico:
+        target.operator(bl_idname, text=text, icon_value=ico)
+    else:
+        target.operator(bl_idname, text=text, icon=fallback_icon)
+
+
+# ---------------------------------------------------------------------------
+# Panel
+# ---------------------------------------------------------------------------
 
 class VIEW3D_PT_dcl_tools(bpy.types.Panel):
     bl_label = "Decentraland Tools"
@@ -61,118 +86,139 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        
-        # Header with tool icon
-        row = layout.row(align=True)
-        # Use a tool-type icon that represents the add-on's functionality
-        row.label(text="", icon='TOOL_SETTINGS')  # Tool settings icon
-        row.label(text="Decentraland Tools")
-        
-        # Scene Creation Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_scene_expanded", text="Scene Creation", icon='TRIA_DOWN' if context.scene.dcl_tools_scene_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_scene_expanded:
+        scene = context.scene
+
+        # ---- Header ----
+        header = layout.row(align=True)
+        dcl_icon = icon_loader.get_icon("DCL_LOGO")
+        if dcl_icon:
+            header.label(text="  Decentraland Tools", icon_value=dcl_icon)
+        else:
+            header.label(text="  Decentraland Tools", icon='TOOL_SETTINGS')
+
+        # ================================================================
+        # Scene Creation
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_scene_expanded", "Scene Creation")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_create_parcels.bl_idname, text="Create Parcels", icon='MESH_PLANE')
-            col.operator(OBJECT_OT_scene_limitations.bl_idname, text="Scene Limitations Calculator", icon='INFO')
-            col.operator(OBJECT_OT_validate_scene.bl_idname, text="Scene Validator (Pre-flight)", icon='SEQUENCE')
-        
-        # Export Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_export_expanded", text="Export", icon='TRIA_DOWN' if context.scene.dcl_tools_export_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_export_expanded:
+            col.scale_y = 1.2
+            _op(col, OBJECT_OT_create_parcels.bl_idname, "Create Parcels", "GRID_DOTS", 'MESH_PLANE')
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_scene_limitations.bl_idname, "Scene Limitations", "RULER", 'INFO')
+            _op(row, OBJECT_OT_validate_scene.bl_idname, "Scene Validator", "SHIELD_CHECK", 'SEQUENCE')
+
+        # ================================================================
+        # Export
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_export_expanded", "Export")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_export_lights.bl_idname, text="Export Lights (EXPERIMENTAL)", icon='LIGHT_DATA')
-            col.operator(OBJECT_OT_quick_export_gltf.bl_idname, text="Quick Export glTF (.glb)", icon='EXPORT')
-        
-        # Avatars Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_avatars_expanded", text="Avatars", icon='TRIA_DOWN' if context.scene.dcl_tools_avatars_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_avatars_expanded:
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_export_lights.bl_idname, "Export Lights", "BULB", 'LIGHT_DATA')
+            _op(row, OBJECT_OT_quick_export_gltf.bl_idname, "Export glTF", "PACKAGE_EXPORT", 'EXPORT')
+
+        # ================================================================
+        # Avatars
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_avatars_expanded", "Avatars")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_link_avatar_wearables.bl_idname, text="Avatar Shapes", icon='ARMATURE_DATA')
-            col.operator(OBJECT_OT_avatar_limitations.bl_idname, text="Avatar Limitations Calculator", icon='INFO')
-        
-        # Converter Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_converter_expanded", text="Converter", icon='TRIA_DOWN' if context.scene.dcl_tools_converter_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_converter_expanded:
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_link_avatar_wearables.bl_idname, "Avatar Shapes", "FRIENDS", 'ARMATURE_DATA')
+            _op(row, OBJECT_OT_avatar_limitations.bl_idname, "Wearable Limits", "SHIRT_SPORT", 'INFO')
+
+        # ================================================================
+        # Converter
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_converter_expanded", "Converter")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_particles_to_armature_converter.bl_idname, text="Particle to Armature", icon='PARTICLES')
-        
-        # Materials & Textures Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_materials_expanded", text="Materials & Textures", icon='TRIA_DOWN' if context.scene.dcl_tools_materials_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_materials_expanded:
+            col.scale_y = 1.2
+            _op(col, OBJECT_OT_particles_to_armature_converter.bl_idname, "Particle to Armature", "BONE", 'PARTICLES')
+
+        # ================================================================
+        # Materials & Textures
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_materials_expanded", "Materials & Textures")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_replace_materials.bl_idname, text="Replace Materials", icon='MATERIAL_DATA')
-            col.operator(OBJECT_OT_clean_unused_materials.bl_idname, text="Clean Unused Materials", icon='BRUSH_DATA')
-            col.operator(OBJECT_OT_resize_textures.bl_idname, text="Resize Textures", icon='IMAGE_DATA')
-            col.operator(OBJECT_OT_validate_textures.bl_idname, text="Validate Textures", icon='TEXTURE')
-            col.operator(OBJECT_OT_enable_backface_culling.bl_idname, text="Enable Backface Culling", icon='MESH_CUBE')
-        
-        # CleanUp Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_cleanup_expanded", text="CleanUp", icon='TRIA_DOWN' if context.scene.dcl_tools_cleanup_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_cleanup_expanded:
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_replace_materials.bl_idname, "Replace Materials", "REPLACE", 'MATERIAL_DATA')
+            _op(row, OBJECT_OT_clean_unused_materials.bl_idname, "Clean Unused", "ERASER", 'BRUSH_DATA')
+            col.separator(factor=0.3)
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_resize_textures.bl_idname, "Resize Textures", "IMAGE_IN_PICTURE", 'IMAGE_DATA')
+            _op(row, OBJECT_OT_validate_textures.bl_idname, "Validate Textures", "PHOTO_CHECK", 'TEXTURE')
+            col.separator(factor=0.3)
+            _op(col, OBJECT_OT_enable_backface_culling.bl_idname, "Enable Backface Culling", "FLIP_VERTICAL", 'NORMALS_FACE')
+
+        # ================================================================
+        # CleanUp
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_cleanup_expanded", "CleanUp")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_remove_empty_objects.bl_idname, text="Remove Empty Objects", icon='X')
-            col.operator(OBJECT_OT_apply_transforms.bl_idname, text="Apply Transforms", icon='SNAP_ON')
-            col.operator(OBJECT_OT_rename_mesh_data.bl_idname, text="Rename Mesh Data to Object Name", icon='MESH_DATA')
-            col.operator(OBJECT_OT_rename_textures.bl_idname, text="Rename Textures by Material", icon='TEXTURE')
-            col.operator(OBJECT_OT_batch_rename.bl_idname, text="Batch Rename Objects", icon='SORTALPHA')
-        
-        # LOD Generator Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_lod_expanded", text="LOD Generator", icon='TRIA_DOWN' if context.scene.dcl_tools_lod_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_lod_expanded:
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_remove_empty_objects.bl_idname, "Remove Empty Objects", "TRASH_X", 'X')
+            _op(row, OBJECT_OT_apply_transforms.bl_idname, "Apply Transforms", "TRANSFORM", 'SNAP_ON')
+            col.separator(factor=0.3)
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_rename_mesh_data.bl_idname, "Rename Mesh Data", "FORMS", 'MESH_DATA')
+            _op(row, OBJECT_OT_rename_textures.bl_idname, "Rename Textures", "PHOTO_EDIT", 'TEXTURE')
+            col.separator(factor=0.3)
+            _op(col, OBJECT_OT_batch_rename.bl_idname, "Batch Rename Objects", "EDIT", 'SORTALPHA')
+
+        # ================================================================
+        # LOD Generator
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_lod_expanded", "LOD Generator")
+        if expanded:
             draw_lod_panel(box, context)
-        
-        # Viewer Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_viewer_expanded", text="Viewer", icon='TRIA_DOWN' if context.scene.dcl_tools_viewer_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_viewer_expanded:
+
+        # ================================================================
+        # Viewer
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_viewer_expanded", "Viewer")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_toggle_display_mode.bl_idname, text="Toggle Display Mode", icon='RESTRICT_VIEW_OFF')
-        
-        # Collider Management Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_manage_expanded", text="Collider Management", icon='TRIA_DOWN' if context.scene.dcl_tools_manage_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_manage_expanded:
+            col.scale_y = 1.2
+            _op(col, OBJECT_OT_toggle_display_mode.bl_idname, "Toggle Display Mode", "EYE_DOTTED", 'RESTRICT_VIEW_OFF')
+
+        # ================================================================
+        # Collider Management
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_manage_expanded", "Collider Management")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_rename_add_collider_suffix.bl_idname, text="Add _collider Suffix", icon='OUTLINER_OB_MESH')
-            col.operator(OBJECT_OT_remove_uvs_from_colliders.bl_idname, text="Remove UVs from Colliders", icon='UV')
-            col.operator(OBJECT_OT_strip_materials_from_colliders.bl_idname, text="Strip Materials from Colliders", icon='MATERIAL')
-            col.operator(OBJECT_OT_simplify_colliders.bl_idname, text="Simplify Colliders", icon='MOD_DECIM')
-        
-        # Documentation Section
-        box = layout.box()
-        row = box.row()
-        row.prop(context.scene, "dcl_tools_docs_expanded", text="Documentation", icon='TRIA_DOWN' if context.scene.dcl_tools_docs_expanded else 'TRIA_RIGHT', emboss=False)
-        
-        if context.scene.dcl_tools_docs_expanded:
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_rename_add_collider_suffix.bl_idname, "Add Suffix", "TAG", 'OUTLINER_OB_MESH')
+            _op(row, OBJECT_OT_remove_uvs_from_colliders.bl_idname, "Remove UVs", "MAP_OFF", 'UV')
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_strip_materials_from_colliders.bl_idname, "Strip Materials", "SPHERE_OFF", 'MATERIAL')
+            _op(row, OBJECT_OT_simplify_colliders.bl_idname, "Simplify", "POLYGON", 'MOD_DECIM')
+
+        # ================================================================
+        # Documentation
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_docs_expanded", "Documentation")
+        if expanded:
             col = box.column(align=True)
-            col.operator(OBJECT_OT_open_documentation.bl_idname, text="Open Documentation", icon='HELP')
-            col.operator(OBJECT_OT_scene_limits_guide.bl_idname, text="Scene Limits Guide", icon='INFO')
-            col.operator(OBJECT_OT_asset_guidelines.bl_idname, text="Asset Guidelines", icon='FILE_TEXT')
+            col.scale_y = 1.3
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_open_documentation.bl_idname, "Documentation", "BOOK", 'HELP')
+            _op(row, OBJECT_OT_scene_limits_guide.bl_idname, "Limits Guide", "BOOK_2", 'INFO')
+            _op(row, OBJECT_OT_asset_guidelines.bl_idname, "Asset Guide", "FILE_DESC", 'FILE_TEXT')
+
+
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
 
 classes = (
     MaterialListItem,
@@ -209,7 +255,11 @@ classes = (
     VIEW3D_PT_dcl_tools,
 )
 
+
 def register():
+    # Load custom icons first
+    icon_loader.register()
+
     # Register properties
     bpy.types.Scene.dcl_tools_scene_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_export_expanded = bpy.props.BoolProperty(default=True)
@@ -221,7 +271,7 @@ def register():
     bpy.types.Scene.dcl_tools_manage_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_lod_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_docs_expanded = bpy.props.BoolProperty(default=True)
-    
+
     # LOD Generator panel properties
     bpy.types.Scene.dcl_lod_levels = bpy.props.IntProperty(
         name="LOD Levels",
@@ -267,7 +317,7 @@ def register():
         description="Place generated LODs in a dedicated collection",
         default=True,
     )
-    
+
     # Particle System Converter properties
     bpy.types.Scene.ps_converter_out_collection = bpy.props.StringProperty(
         name="Output Collection",
@@ -286,7 +336,7 @@ def register():
         default=250,
         min=1
     )
-    
+
     # Replace Materials operator properties
     bpy.types.WindowManager.replace_materials_add = bpy.props.StringProperty(
         name="Replace Materials Add",
@@ -298,17 +348,15 @@ def register():
         description="Temporary property for removing materials from replacement list",
         default=-1,
     )
-    
-    # Load custom icon
-    load_custom_icon()
-    
+
     for cls in classes:
         register_class(cls)
+
 
 def unregister():
     for cls in reversed(classes):
         unregister_class(cls)
-    
+
     # Unregister properties
     del bpy.types.Scene.dcl_tools_scene_expanded
     del bpy.types.Scene.dcl_tools_export_expanded
@@ -320,7 +368,7 @@ def unregister():
     del bpy.types.Scene.dcl_tools_manage_expanded
     del bpy.types.Scene.dcl_tools_lod_expanded
     del bpy.types.Scene.dcl_tools_docs_expanded
-    
+
     # Unregister LOD Generator properties
     del bpy.types.Scene.dcl_lod_levels
     del bpy.types.Scene.dcl_lod1_ratio
@@ -328,17 +376,21 @@ def unregister():
     del bpy.types.Scene.dcl_lod3_ratio
     del bpy.types.Scene.dcl_lod4_ratio
     del bpy.types.Scene.dcl_lod_create_collection
-    
+
     # Unregister Particle System Converter properties
     del bpy.types.Scene.ps_converter_out_collection
     del bpy.types.Scene.ps_converter_start_frame
     del bpy.types.Scene.ps_converter_end_frame
-    
+
     # Unregister Replace Materials properties
     if hasattr(bpy.types.WindowManager, 'replace_materials_add'):
         del bpy.types.WindowManager.replace_materials_add
     if hasattr(bpy.types.WindowManager, 'replace_materials_remove'):
         del bpy.types.WindowManager.replace_materials_remove
+
+    # Unload custom icons last
+    icon_loader.unregister()
+
 
 if __name__ == "__main__":
     register()

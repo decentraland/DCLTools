@@ -1,4 +1,5 @@
 import bpy
+from .. import icon_loader
 
 
 def draw_lod_panel(layout, context):
@@ -45,11 +46,19 @@ def draw_lod_panel(layout, context):
     layout.separator()
     row = layout.row(align=True)
     row.scale_y = 1.4
-    op = row.operator(
-        OBJECT_OT_generate_lod.bl_idname,
-        text="Generate LODs",
-        icon='MOD_DECIM',
-    )
+    ico = icon_loader.get_icon("CUBE_SPARK")
+    if ico:
+        op = row.operator(
+            OBJECT_OT_generate_lod.bl_idname,
+            text="Generate LODs",
+            icon_value=ico,
+        )
+    else:
+        op = row.operator(
+            OBJECT_OT_generate_lod.bl_idname,
+            text="Generate LODs",
+            icon='MOD_DECIM',
+        )
     # Pass panel settings to the operator
     op.lod_levels = scene.dcl_lod_levels
     op.lod1_ratio = scene.dcl_lod1_ratio
