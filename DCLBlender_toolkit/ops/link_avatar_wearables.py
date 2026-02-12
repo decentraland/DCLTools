@@ -45,7 +45,7 @@ class OBJECT_OT_link_avatar_wearables(bpy.types.Operator):
         # Try to find the assets directory
         possible_asset_paths = [
             os.path.join(addon_dir, "assets"),
-            os.path.join(addon_dir, "collider_toolkit", "assets"),
+            os.path.join(addon_dir, "DCLBlender_toolkit", "assets"),
             os.path.join(os.path.dirname(addon_dir), "assets"),
             os.path.join(os.path.dirname(os.path.dirname(addon_dir)), "assets"),
         ]
