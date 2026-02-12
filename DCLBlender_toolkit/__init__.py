@@ -226,14 +226,14 @@ def register():
     bpy.types.Scene.dcl_lod_levels = bpy.props.IntProperty(
         name="LOD Levels",
         description="Number of LOD levels to generate",
-        default=2,
+        default=3,
         min=1,
         max=4,
     )
     bpy.types.Scene.dcl_lod1_ratio = bpy.props.FloatProperty(
         name="LOD 1 Ratio",
         description="Decimation ratio for LOD 1 (e.g. 0.5 = keep 50%)",
-        default=0.5,
+        default=0.50,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
@@ -241,7 +241,7 @@ def register():
     bpy.types.Scene.dcl_lod2_ratio = bpy.props.FloatProperty(
         name="LOD 2 Ratio",
         description="Decimation ratio for LOD 2",
-        default=0.25,
+        default=0.15,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
@@ -249,7 +249,7 @@ def register():
     bpy.types.Scene.dcl_lod3_ratio = bpy.props.FloatProperty(
         name="LOD 3 Ratio",
         description="Decimation ratio for LOD 3",
-        default=0.125,
+        default=0.05,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
@@ -257,7 +257,7 @@ def register():
     bpy.types.Scene.dcl_lod4_ratio = bpy.props.FloatProperty(
         name="LOD 4 Ratio",
         description="Decimation ratio for LOD 4",
-        default=0.0625,
+        default=0.02,
         min=0.01,
         max=0.99,
         subtype='FACTOR',

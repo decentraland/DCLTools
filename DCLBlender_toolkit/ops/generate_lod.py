@@ -73,7 +73,7 @@ class OBJECT_OT_generate_lod(bpy.types.Operator):
     lod_levels: bpy.props.IntProperty(
         name="LOD Levels",
         description="Number of LOD levels to generate",
-        default=2,
+        default=3,
         min=1,
         max=4,
     )
@@ -81,7 +81,7 @@ class OBJECT_OT_generate_lod(bpy.types.Operator):
     lod1_ratio: bpy.props.FloatProperty(
         name="LOD1 Ratio",
         description="Decimation ratio for LOD1 (e.g. 0.5 = 50% of original)",
-        default=0.5,
+        default=0.50,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
@@ -90,7 +90,7 @@ class OBJECT_OT_generate_lod(bpy.types.Operator):
     lod2_ratio: bpy.props.FloatProperty(
         name="LOD2 Ratio",
         description="Decimation ratio for LOD2",
-        default=0.25,
+        default=0.15,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
@@ -99,7 +99,7 @@ class OBJECT_OT_generate_lod(bpy.types.Operator):
     lod3_ratio: bpy.props.FloatProperty(
         name="LOD3 Ratio",
         description="Decimation ratio for LOD3",
-        default=0.125,
+        default=0.05,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
@@ -108,7 +108,7 @@ class OBJECT_OT_generate_lod(bpy.types.Operator):
     lod4_ratio: bpy.props.FloatProperty(
         name="LOD4 Ratio",
         description="Decimation ratio for LOD4",
-        default=0.0625,
+        default=0.02,
         min=0.01,
         max=0.99,
         subtype='FACTOR',
