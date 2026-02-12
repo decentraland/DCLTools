@@ -40,6 +40,12 @@ from .ops.replace_materials import (
     OBJECT_OT_add_source_material_to_list,
     OBJECT_OT_remove_source_material_from_list,
 )
+from .ops.clean_unused_materials import OBJECT_OT_clean_unused_materials
+from .ops.validate_textures import OBJECT_OT_validate_textures
+from .ops.validate_scene import OBJECT_OT_validate_scene
+from .ops.batch_rename import OBJECT_OT_batch_rename
+from .ops.generate_lod import OBJECT_OT_generate_lod, draw_lod_panel  # noqa: F401
+from .ops.quick_export_gltf import OBJECT_OT_quick_export_gltf
 
 def load_custom_icon():
     """Load custom Decentraland logo as Blender icon"""
@@ -71,6 +77,7 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             col = box.column(align=True)
             col.operator(OBJECT_OT_create_parcels.bl_idname, text="Create Parcels", icon='MESH_PLANE')
             col.operator(OBJECT_OT_scene_limitations.bl_idname, text="Scene Limitations Calculator", icon='INFO')
+            col.operator(OBJECT_OT_validate_scene.bl_idname, text="Scene Validator (Pre-flight)", icon='SEQUENCE')
         
         # Export Section
         box = layout.box()
@@ -80,6 +87,7 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
         if context.scene.dcl_tools_export_expanded:
             col = box.column(align=True)
             col.operator(OBJECT_OT_export_lights.bl_idname, text="Export Lights (EXPERIMENTAL)", icon='LIGHT_DATA')
+            col.operator(OBJECT_OT_quick_export_gltf.bl_idname, text="Quick Export glTF (.glb)", icon='EXPORT')
         
         # Avatars Section
         box = layout.box()
@@ -108,7 +116,9 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
         if context.scene.dcl_tools_materials_expanded:
             col = box.column(align=True)
             col.operator(OBJECT_OT_replace_materials.bl_idname, text="Replace Materials", icon='MATERIAL_DATA')
+            col.operator(OBJECT_OT_clean_unused_materials.bl_idname, text="Clean Unused Materials", icon='BRUSH_DATA')
             col.operator(OBJECT_OT_resize_textures.bl_idname, text="Resize Textures", icon='IMAGE_DATA')
+            col.operator(OBJECT_OT_validate_textures.bl_idname, text="Validate Textures", icon='TEXTURE')
             col.operator(OBJECT_OT_enable_backface_culling.bl_idname, text="Enable Backface Culling", icon='MESH_CUBE')
         
         # CleanUp Section
@@ -122,6 +132,15 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             col.operator(OBJECT_OT_apply_transforms.bl_idname, text="Apply Transforms", icon='SNAP_ON')
             col.operator(OBJECT_OT_rename_mesh_data.bl_idname, text="Rename Mesh Data to Object Name", icon='MESH_DATA')
             col.operator(OBJECT_OT_rename_textures.bl_idname, text="Rename Textures by Material", icon='TEXTURE')
+            col.operator(OBJECT_OT_batch_rename.bl_idname, text="Batch Rename Objects", icon='SORTALPHA')
+        
+        # LOD Generator Section
+        box = layout.box()
+        row = box.row()
+        row.prop(context.scene, "dcl_tools_lod_expanded", text="LOD Generator", icon='TRIA_DOWN' if context.scene.dcl_tools_lod_expanded else 'TRIA_RIGHT', emboss=False)
+        
+        if context.scene.dcl_tools_lod_expanded:
+            draw_lod_panel(box, context)
         
         # Viewer Section
         box = layout.box()
@@ -178,6 +197,12 @@ classes = (
     OBJECT_OT_replace_materials,
     OBJECT_OT_add_source_material_to_list,
     OBJECT_OT_remove_source_material_from_list,
+    OBJECT_OT_clean_unused_materials,
+    OBJECT_OT_validate_textures,
+    OBJECT_OT_validate_scene,
+    OBJECT_OT_batch_rename,
+    OBJECT_OT_generate_lod,
+    OBJECT_OT_quick_export_gltf,
     OBJECT_OT_open_documentation,
     OBJECT_OT_scene_limits_guide,
     OBJECT_OT_asset_guidelines,
@@ -194,7 +219,54 @@ def register():
     bpy.types.Scene.dcl_tools_cleanup_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_viewer_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_manage_expanded = bpy.props.BoolProperty(default=True)
+    bpy.types.Scene.dcl_tools_lod_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_docs_expanded = bpy.props.BoolProperty(default=True)
+    
+    # LOD Generator panel properties
+    bpy.types.Scene.dcl_lod_levels = bpy.props.IntProperty(
+        name="LOD Levels",
+        description="Number of LOD levels to generate",
+        default=2,
+        min=1,
+        max=4,
+    )
+    bpy.types.Scene.dcl_lod1_ratio = bpy.props.FloatProperty(
+        name="LOD 1 Ratio",
+        description="Decimation ratio for LOD 1 (e.g. 0.5 = keep 50%)",
+        default=0.5,
+        min=0.01,
+        max=0.99,
+        subtype='FACTOR',
+    )
+    bpy.types.Scene.dcl_lod2_ratio = bpy.props.FloatProperty(
+        name="LOD 2 Ratio",
+        description="Decimation ratio for LOD 2",
+        default=0.25,
+        min=0.01,
+        max=0.99,
+        subtype='FACTOR',
+    )
+    bpy.types.Scene.dcl_lod3_ratio = bpy.props.FloatProperty(
+        name="LOD 3 Ratio",
+        description="Decimation ratio for LOD 3",
+        default=0.125,
+        min=0.01,
+        max=0.99,
+        subtype='FACTOR',
+    )
+    bpy.types.Scene.dcl_lod4_ratio = bpy.props.FloatProperty(
+        name="LOD 4 Ratio",
+        description="Decimation ratio for LOD 4",
+        default=0.0625,
+        min=0.01,
+        max=0.99,
+        subtype='FACTOR',
+    )
+    bpy.types.Scene.dcl_lod_create_collection = bpy.props.BoolProperty(
+        name="Create LOD Collection",
+        description="Place generated LODs in a dedicated collection",
+        default=True,
+    )
     
     # Particle System Converter properties
     bpy.types.Scene.ps_converter_out_collection = bpy.props.StringProperty(
@@ -246,7 +318,16 @@ def unregister():
     del bpy.types.Scene.dcl_tools_cleanup_expanded
     del bpy.types.Scene.dcl_tools_viewer_expanded
     del bpy.types.Scene.dcl_tools_manage_expanded
+    del bpy.types.Scene.dcl_tools_lod_expanded
     del bpy.types.Scene.dcl_tools_docs_expanded
+    
+    # Unregister LOD Generator properties
+    del bpy.types.Scene.dcl_lod_levels
+    del bpy.types.Scene.dcl_lod1_ratio
+    del bpy.types.Scene.dcl_lod2_ratio
+    del bpy.types.Scene.dcl_lod3_ratio
+    del bpy.types.Scene.dcl_lod4_ratio
+    del bpy.types.Scene.dcl_lod_create_collection
     
     # Unregister Particle System Converter properties
     del bpy.types.Scene.ps_converter_out_collection
