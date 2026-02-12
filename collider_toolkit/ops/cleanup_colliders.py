@@ -31,7 +31,26 @@ class OBJECT_OT_cleanup_colliders(bpy.types.Operator):
         affected = 0
 
         for obj in objects:
-            if obj.type != 'MESH' or not obj.name.endswith("_collider"):
+            if obj.type != 'MESH':
+                continue
+            
+            # Check if object name contains "_collider" (handles .001, .002 suffixes)
+            # OR if it's a child of a collider object
+            is_collider = False
+            
+            # Direct collider check
+            if "_collider" in obj.name:
+                is_collider = True
+            else:
+                # Check if parent is a collider
+                parent = obj.parent
+                while parent:
+                    if "_collider" in parent.name:
+                        is_collider = True
+                        break
+                    parent = parent.parent
+            
+            if not is_collider:
                 continue
 
             # Select and make active

@@ -3,7 +3,7 @@ import bpy
 class OBJECT_OT_simplify_colliders(bpy.types.Operator):
     bl_idname = "object.simplify_colliders"
     bl_label = "Simplify Colliders"
-    bl_description = "Apply decimation modifier to reduce polygon count on collider objects"
+    bl_description = "Apply decimation modifier to reduce polygon count on selected collider objects"
     bl_options = {'REGISTER', 'UNDO'}
 
     ratio: bpy.props.FloatProperty(
@@ -14,12 +14,6 @@ class OBJECT_OT_simplify_colliders(bpy.types.Operator):
         max=1.0,
     )
 
-    scope_selected: bpy.props.BoolProperty(
-        name="Only Selected",
-        description="Affect only selected objects",
-        default=False,
-    )
-
     def execute(self, context):
         if bpy.context.mode != 'OBJECT':
             try:
@@ -27,12 +21,45 @@ class OBJECT_OT_simplify_colliders(bpy.types.Operator):
             except Exception:
                 pass
 
-        objects = context.selected_objects if self.scope_selected else bpy.data.objects
+        # Work on selected objects only for individual control
+        if not context.selected_objects:
+            self.report({'WARNING'}, "Please select one or more collider objects to simplify")
+            return {'CANCELLED'}
+
         affected = 0
 
-        for obj in objects:
-            if obj.type != 'MESH' or not obj.name.endswith("_collider"):
+        for obj in context.selected_objects:
+            if obj.type != 'MESH':
                 continue
+            
+            # Check if object name contains "_collider" (handles .001, .002 suffixes)
+            # OR if it's a child of a collider object
+            is_collider = False
+            
+            # Direct collider check
+            if "_collider" in obj.name:
+                is_collider = True
+            else:
+                # Check if parent is a collider
+                parent = obj.parent
+                while parent:
+                    if "_collider" in parent.name:
+                        is_collider = True
+                        break
+                    parent = parent.parent
+            
+            if not is_collider:
+                self.report({'WARNING'}, f"Object '{obj.name}' is not a collider, skipping")
+                continue
+
+            # Store original selection
+            original_selection = list(context.selected_objects)
+            original_active = context.active_object
+
+            # Select only this object
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
 
             # Add decimation modifier
             decimate_mod = obj.modifiers.new(name="Decimate", type='DECIMATE')
@@ -40,18 +67,31 @@ class OBJECT_OT_simplify_colliders(bpy.types.Operator):
             decimate_mod.use_collapse_triangulate = True
             
             # Apply the modifier
-            bpy.context.view_layer.objects.active = obj
             bpy.ops.object.modifier_apply(modifier=decimate_mod.name)
             
             affected += 1
+            self.report({'INFO'}, f"Simplified '{obj.name}' with ratio {self.ratio}")
 
-        self.report({'INFO'}, f"Simplified {affected} collider objects with ratio {self.ratio}")
+            # Restore original selection
+            bpy.ops.object.select_all(action='DESELECT')
+            for sel_obj in original_selection:
+                sel_obj.select_set(True)
+            if original_active:
+                context.view_layer.objects.active = original_active
+
+        if affected > 0:
+            self.report({'INFO'}, f"Successfully simplified {affected} collider object(s)")
+        else:
+            self.report({'WARNING'}, "No collider objects found in selection")
+        
         return {'FINISHED'}
 
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "ratio")
-        layout.prop(self, "scope_selected")
+        layout.separator()
+        layout.label(text="Select collider objects to simplify")
+        layout.label(text="Each object will be processed individually")
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)

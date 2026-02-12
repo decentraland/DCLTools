@@ -24,7 +24,26 @@ class OBJECT_OT_remove_uvs_from_colliders(bpy.types.Operator):
         removed_layers = 0
 
         for obj in objects:
-            if obj.type != 'MESH' or not obj.name.endswith("_collider"):
+            if obj.type != 'MESH':
+                continue
+            
+            # Check if object name contains "_collider" (handles .001, .002 suffixes)
+            # OR if it's a child of a collider object
+            is_collider = False
+            
+            # Direct collider check
+            if "_collider" in obj.name:
+                is_collider = True
+            else:
+                # Check if parent is a collider
+                parent = obj.parent
+                while parent:
+                    if "_collider" in parent.name:
+                        is_collider = True
+                        break
+                    parent = parent.parent
+            
+            if not is_collider:
                 continue
 
             mesh = obj.data
@@ -47,7 +66,7 @@ class OBJECT_OT_remove_uvs_from_colliders(bpy.types.Operator):
                 affected_objects += 1
                 removed_layers += count_before
 
-        self.report({'INFO'}, f"Removed {removed_layers} UV layers from {affected_objects} *_collider meshes")
+        self.report({'INFO'}, f"Removed {removed_layers} UV layers from {affected_objects} collider meshes")
         return {'FINISHED'}
 
     def draw(self, context):
