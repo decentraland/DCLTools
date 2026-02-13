@@ -7,6 +7,7 @@ for use with icon_value= in Blender UI layouts.
 """
 
 import bpy
+import bpy.utils.previews
 import os
 
 preview_collections = {}
