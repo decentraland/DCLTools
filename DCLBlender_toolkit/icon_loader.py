@@ -7,8 +7,33 @@ for use with icon_value= in Blender UI layouts.
 """
 
 import bpy
-import bpy.utils.previews
 import os
+
+# Lazy-load previews module — some Blender builds don't expose it
+# as an attribute of bpy.utils until registration time.
+_previews_mod = None
+
+
+def _get_previews():
+    global _previews_mod
+    if _previews_mod is not None:
+        return _previews_mod
+    # Try every known way to reach the module.
+    try:
+        import bpy.utils.previews as _mod
+        _previews_mod = _mod
+        return _mod
+    except (ImportError, AttributeError):
+        pass
+    try:
+        _mod = getattr(bpy.utils, "previews", None)
+        if _mod is not None:
+            _previews_mod = _mod
+            return _mod
+    except Exception:
+        pass
+    return None
+
 
 preview_collections = {}
 
@@ -66,18 +91,32 @@ ICONS = {
 
 def register():
     """Load all custom icons into a preview collection."""
-    icons = bpy.utils.previews.new()
-    for name, filename in ICONS.items():
-        filepath = os.path.join(ICON_DIR, filename)
-        if os.path.exists(filepath):
-            icons.load(name, filepath, 'IMAGE')
-    preview_collections["dcl"] = icons
+    previews = _get_previews()
+    if previews is None:
+        print("[Decentraland Tools] Warning: bpy.utils.previews unavailable — using fallback icons.")
+        return
+    try:
+        icons = previews.new()
+        for name, filename in ICONS.items():
+            filepath = os.path.join(ICON_DIR, filename)
+            if os.path.exists(filepath):
+                icons.load(name, filepath, 'IMAGE')
+        preview_collections["dcl"] = icons
+    except Exception as exc:
+        print(f"[Decentraland Tools] Warning: could not load icons — {exc}")
 
 
 def unregister():
     """Remove all preview collections."""
+    previews = _get_previews()
+    if previews is None:
+        preview_collections.clear()
+        return
     for pcoll in preview_collections.values():
-        bpy.utils.previews.remove(pcoll)
+        try:
+            previews.remove(pcoll)
+        except Exception:
+            pass
     preview_collections.clear()
 
 
