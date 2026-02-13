@@ -27,6 +27,12 @@ ICONS = {
     # Avatars
     "FRIENDS": "friends.png",              # Avatar Shapes
     "SHIRT_SPORT": "shirt-sport.png",      # Wearable Limits
+    # Emotes
+    "ASSET": "asset.png",                  # Import DCL Rig (Avatar Rig)
+    "EMOTE_PROPS": "emote-props.png",      # Add Prop
+    "DIMENSIONS": "dimensions.png",        # Limit Area Reference
+    "PROGRESS_CHECK": "progress-check.png", # Validate Emote
+    "EMOTE_EXPORT": "package-export.png",  # Export Emote GLB
     # Converter
     "BONE": "bone.png",                    # Particle to Armature
     # Materials & Textures

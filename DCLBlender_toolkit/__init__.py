@@ -28,6 +28,9 @@ from .ops.documentation import OBJECT_OT_open_documentation, OBJECT_OT_scene_lim
 from .ops.remove_empty_objects import OBJECT_OT_remove_empty_objects
 from .ops.toggle_display_mode import OBJECT_OT_toggle_display_mode
 from .ops.particle_to_armature import OBJECT_OT_particles_to_armature_converter
+from .ops.import_dcl_rig import OBJECT_OT_import_dcl_rig, OBJECT_OT_import_dcl_prop, OBJECT_OT_import_dcl_limit_area
+from .ops.validate_emote import OBJECT_OT_validate_emote
+from .ops.export_emote_glb import OBJECT_OT_export_emote_glb
 from .ops.resize_textures import OBJECT_OT_resize_textures
 from .ops.apply_transforms import OBJECT_OT_apply_transforms
 from .ops.avatar_limitations import OBJECT_OT_avatar_limitations
@@ -131,6 +134,32 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(row, OBJECT_OT_avatar_limitations.bl_idname, "Wearable Limits", "SHIRT_SPORT", 'INFO')
 
         # ================================================================
+        # Emotes
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_emotes_expanded", "Emotes")
+        if expanded:
+            col = box.column(align=True)
+            col.scale_y = 1.2
+
+            _op(col, OBJECT_OT_import_dcl_rig.bl_idname, "Import DCL Rig", "ASSET", 'ARMATURE_DATA')
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_import_dcl_prop.bl_idname, "Add Prop", "EMOTE_PROPS", 'OBJECT_DATA')
+            _op(row, OBJECT_OT_import_dcl_limit_area.bl_idname, "Limit Area Reference", "DIMENSIONS", 'MESH_GRID')
+            col.separator(factor=0.3)
+
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_validate_emote.bl_idname, "Validate Emote", "PROGRESS_CHECK", 'CHECKMARK')
+            _op(row, OBJECT_OT_export_emote_glb.bl_idname, "Export Emote GLB", "EMOTE_EXPORT", 'EXPORT')
+            col.separator(factor=0.3)
+
+            settings = col.box()
+            settings.label(text="Emote Settings")
+            settings.prop(scene, "dcl_emote_start_frame")
+            settings.prop(scene, "dcl_emote_end_frame")
+            settings.prop(scene, "dcl_emote_sampling_rate")
+            settings.prop(scene, "dcl_emote_strict_validation")
+
+        # ================================================================
         # Converter
         # ================================================================
         box, expanded = _section_header(layout, scene, "dcl_tools_converter_expanded", "Converter")
@@ -230,6 +259,11 @@ classes = (
     OBJECT_OT_remove_empty_objects,
     OBJECT_OT_toggle_display_mode,
     OBJECT_OT_export_lights,
+    OBJECT_OT_import_dcl_rig,
+    OBJECT_OT_import_dcl_prop,
+    OBJECT_OT_import_dcl_limit_area,
+    OBJECT_OT_validate_emote,
+    OBJECT_OT_export_emote_glb,
     OBJECT_OT_create_parcels,
     OBJECT_OT_rename_textures,
     OBJECT_OT_resize_textures,
@@ -264,6 +298,7 @@ def register():
     bpy.types.Scene.dcl_tools_scene_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_export_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_avatars_expanded = bpy.props.BoolProperty(default=True)
+    bpy.types.Scene.dcl_tools_emotes_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_converter_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_materials_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_cleanup_expanded = bpy.props.BoolProperty(default=True)
@@ -271,6 +306,34 @@ def register():
     bpy.types.Scene.dcl_tools_manage_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_lod_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_docs_expanded = bpy.props.BoolProperty(default=True)
+
+    # Emotes workflow properties
+    bpy.types.Scene.dcl_emote_start_frame = bpy.props.IntProperty(
+        name="Start Frame",
+        description="First frame of the emote clip",
+        default=1,
+        min=1,
+        max=300,
+    )
+    bpy.types.Scene.dcl_emote_end_frame = bpy.props.IntProperty(
+        name="End Frame",
+        description="Last frame of the emote clip (max 300)",
+        default=300,
+        min=1,
+        max=300,
+    )
+    bpy.types.Scene.dcl_emote_sampling_rate = bpy.props.IntProperty(
+        name="Sampling Rate",
+        description="Export bake step. 2 is recommended, 3 for extra size reduction",
+        default=2,
+        min=1,
+        max=6,
+    )
+    bpy.types.Scene.dcl_emote_strict_validation = bpy.props.BoolProperty(
+        name="Strict Validation",
+        description="Treat warnings as blocking errors for export",
+        default=False,
+    )
 
     # LOD Generator panel properties
     bpy.types.Scene.dcl_lod_levels = bpy.props.IntProperty(
@@ -361,6 +424,7 @@ def unregister():
     del bpy.types.Scene.dcl_tools_scene_expanded
     del bpy.types.Scene.dcl_tools_export_expanded
     del bpy.types.Scene.dcl_tools_avatars_expanded
+    del bpy.types.Scene.dcl_tools_emotes_expanded
     del bpy.types.Scene.dcl_tools_converter_expanded
     del bpy.types.Scene.dcl_tools_materials_expanded
     del bpy.types.Scene.dcl_tools_cleanup_expanded
@@ -368,6 +432,12 @@ def unregister():
     del bpy.types.Scene.dcl_tools_manage_expanded
     del bpy.types.Scene.dcl_tools_lod_expanded
     del bpy.types.Scene.dcl_tools_docs_expanded
+
+    # Unregister Emotes properties
+    del bpy.types.Scene.dcl_emote_start_frame
+    del bpy.types.Scene.dcl_emote_end_frame
+    del bpy.types.Scene.dcl_emote_sampling_rate
+    del bpy.types.Scene.dcl_emote_strict_validation
 
     # Unregister LOD Generator properties
     del bpy.types.Scene.dcl_lod_levels
