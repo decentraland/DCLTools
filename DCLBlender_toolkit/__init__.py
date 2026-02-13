@@ -112,17 +112,6 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(row, OBJECT_OT_validate_scene.bl_idname, "Scene Validator", "SHIELD_CHECK", 'SEQUENCE')
 
         # ================================================================
-        # Export
-        # ================================================================
-        box, expanded = _section_header(layout, scene, "dcl_tools_export_expanded", "Export")
-        if expanded:
-            col = box.column(align=True)
-            col.scale_y = 1.2
-            row = col.row(align=True)
-            _op(row, OBJECT_OT_export_lights.bl_idname, "Export Lights", "BULB", 'LIGHT_DATA')
-            _op(row, OBJECT_OT_quick_export_gltf.bl_idname, "Export glTF", "PACKAGE_EXPORT", 'EXPORT')
-
-        # ================================================================
         # Avatars
         # ================================================================
         box, expanded = _section_header(layout, scene, "dcl_tools_avatars_expanded", "Avatars")
@@ -147,9 +136,7 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(row, OBJECT_OT_import_dcl_limit_area.bl_idname, "Limit Area Reference", "DIMENSIONS", 'MESH_GRID')
             col.separator(factor=0.3)
 
-            row = col.row(align=True)
-            _op(row, OBJECT_OT_validate_emote.bl_idname, "Validate Emote", "PROGRESS_CHECK", 'CHECKMARK')
-            _op(row, OBJECT_OT_export_emote_glb.bl_idname, "Export Emote GLB", "EMOTE_EXPORT", 'EXPORT')
+            _op(col, OBJECT_OT_validate_emote.bl_idname, "Validate Emote", "PROGRESS_CHECK", 'CHECKMARK')
             col.separator(factor=0.3)
 
             settings = col.box()
@@ -158,15 +145,6 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             settings.prop(scene, "dcl_emote_end_frame")
             settings.prop(scene, "dcl_emote_sampling_rate")
             settings.prop(scene, "dcl_emote_strict_validation")
-
-        # ================================================================
-        # Converter
-        # ================================================================
-        box, expanded = _section_header(layout, scene, "dcl_tools_converter_expanded", "Converter")
-        if expanded:
-            col = box.column(align=True)
-            col.scale_y = 1.2
-            _op(col, OBJECT_OT_particles_to_armature_converter.bl_idname, "Particle to Armature", "BONE", 'PARTICLES')
 
         # ================================================================
         # Materials & Textures
@@ -186,6 +164,22 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(col, OBJECT_OT_enable_backface_culling.bl_idname, "Enable Backface Culling", "FLIP_VERTICAL", 'NORMALS_FACE')
 
         # ================================================================
+        # LOD Generator
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_lod_expanded", "LOD Generator")
+        if expanded:
+            draw_lod_panel(box, context)
+
+        # ================================================================
+        # Viewer
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_viewer_expanded", "Viewer")
+        if expanded:
+            col = box.column(align=True)
+            col.scale_y = 1.2
+            _op(col, OBJECT_OT_toggle_display_mode.bl_idname, "Toggle Display Mode", "EYE_DOTTED", 'RESTRICT_VIEW_OFF')
+
+        # ================================================================
         # CleanUp
         # ================================================================
         box, expanded = _section_header(layout, scene, "dcl_tools_cleanup_expanded", "CleanUp")
@@ -203,22 +197,6 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(col, OBJECT_OT_batch_rename.bl_idname, "Batch Rename Objects", "EDIT", 'SORTALPHA')
 
         # ================================================================
-        # LOD Generator
-        # ================================================================
-        box, expanded = _section_header(layout, scene, "dcl_tools_lod_expanded", "LOD Generator")
-        if expanded:
-            draw_lod_panel(box, context)
-
-        # ================================================================
-        # Viewer
-        # ================================================================
-        box, expanded = _section_header(layout, scene, "dcl_tools_viewer_expanded", "Viewer")
-        if expanded:
-            col = box.column(align=True)
-            col.scale_y = 1.2
-            _op(col, OBJECT_OT_toggle_display_mode.bl_idname, "Toggle Display Mode", "EYE_DOTTED", 'RESTRICT_VIEW_OFF')
-
-        # ================================================================
         # Collider Management
         # ================================================================
         box, expanded = _section_header(layout, scene, "dcl_tools_manage_expanded", "Collider Management")
@@ -233,6 +211,17 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(row, OBJECT_OT_simplify_colliders.bl_idname, "Simplify", "POLYGON", 'MOD_DECIM')
 
         # ================================================================
+        # Export
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_export_expanded", "Export")
+        if expanded:
+            col = box.column(align=True)
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_quick_export_gltf.bl_idname, "Export glTF", "PACKAGE_EXPORT", 'EXPORT')
+            _op(row, OBJECT_OT_export_emote_glb.bl_idname, "Export Emote GLB", "EMOTE_EXPORT", 'EXPORT')
+
+        # ================================================================
         # Documentation
         # ================================================================
         box, expanded = _section_header(layout, scene, "dcl_tools_docs_expanded", "Documentation")
@@ -243,6 +232,17 @@ class VIEW3D_PT_dcl_tools(bpy.types.Panel):
             _op(row, OBJECT_OT_open_documentation.bl_idname, "Documentation", "BOOK", 'HELP')
             _op(row, OBJECT_OT_scene_limits_guide.bl_idname, "Limits Guide", "BOOK_2", 'INFO')
             _op(row, OBJECT_OT_asset_guidelines.bl_idname, "Asset Guide", "FILE_DESC", 'FILE_TEXT')
+
+        # ================================================================
+        # Experimental
+        # ================================================================
+        box, expanded = _section_header(layout, scene, "dcl_tools_experimental_expanded", "Experimental")
+        if expanded:
+            col = box.column(align=True)
+            col.scale_y = 1.2
+            row = col.row(align=True)
+            _op(row, OBJECT_OT_export_lights.bl_idname, "Export Lights", "BULB", 'LIGHT_DATA')
+            _op(row, OBJECT_OT_particles_to_armature_converter.bl_idname, "Particle to Armature", "BONE", 'PARTICLES')
 
 
 # ---------------------------------------------------------------------------
@@ -299,13 +299,13 @@ def register():
     bpy.types.Scene.dcl_tools_export_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_avatars_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_emotes_expanded = bpy.props.BoolProperty(default=True)
-    bpy.types.Scene.dcl_tools_converter_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_materials_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_cleanup_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_viewer_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_manage_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_lod_expanded = bpy.props.BoolProperty(default=True)
     bpy.types.Scene.dcl_tools_docs_expanded = bpy.props.BoolProperty(default=True)
+    bpy.types.Scene.dcl_tools_experimental_expanded = bpy.props.BoolProperty(default=False)
 
     # Emotes workflow properties
     bpy.types.Scene.dcl_emote_start_frame = bpy.props.IntProperty(
@@ -425,13 +425,13 @@ def unregister():
     del bpy.types.Scene.dcl_tools_export_expanded
     del bpy.types.Scene.dcl_tools_avatars_expanded
     del bpy.types.Scene.dcl_tools_emotes_expanded
-    del bpy.types.Scene.dcl_tools_converter_expanded
     del bpy.types.Scene.dcl_tools_materials_expanded
     del bpy.types.Scene.dcl_tools_cleanup_expanded
     del bpy.types.Scene.dcl_tools_viewer_expanded
     del bpy.types.Scene.dcl_tools_manage_expanded
     del bpy.types.Scene.dcl_tools_lod_expanded
     del bpy.types.Scene.dcl_tools_docs_expanded
+    del bpy.types.Scene.dcl_tools_experimental_expanded
 
     # Unregister Emotes properties
     del bpy.types.Scene.dcl_emote_start_frame

@@ -1,6 +1,6 @@
 # Decentraland Blender Tools
 
-A comprehensive Blender add-on for Decentraland scene and wearable creation. Provides tools for scene setup, material management, texture optimization, avatar development, collider workflow, and more.
+A comprehensive Blender add-on for Decentraland scene and wearable creation. Provides tools for scene setup, material management, texture optimization, avatar development, emote creation, collider workflow, and more.
 
 Compatible with **Blender 2.80 through 5.0+**.
 
@@ -16,6 +16,22 @@ Compatible with **Blender 2.80 through 5.0+**.
 
 ---
 
+## Panel Section Order
+
+1. Scene Creation
+2. Avatars
+3. Emotes
+4. Materials & Textures
+5. LOD Generator
+6. Viewer
+7. CleanUp
+8. Collider Management
+9. Export
+10. Documentation
+11. Experimental
+
+---
+
 ## Features
 
 ### Scene Creation
@@ -26,35 +42,44 @@ Compatible with **Blender 2.80 through 5.0+**.
 | **Scene Limitations Calculator** | Analyze current scene usage against Decentraland limits (triangles, entities, bodies, materials, textures, height) |
 | **Scene Validator (Pre-flight)** | One-click pre-flight check: validates triangle count, entities, bodies, materials, textures, height, non-applied transforms, missing materials, and non-power-of-two textures against DCL limits with green/yellow/red status |
 
-### Export
-
-| Tool | Description |
-|------|-------------|
-| **Export Lights (Experimental)** | Export lights from a collection to a JSON file formatted for the Decentraland SDK (position, color, intensity, range) |
-| **Quick Export glTF (.glb)** | One-click glTF/GLB export with DCL-optimized defaults: binary format, apply modifiers, no cameras/lights, output next to the .blend file. Reports file size after export |
-
 ### Avatars
 
 | Tool | Description |
 |------|-------------|
 | **Avatar Shapes** | Import editable Decentraland avatar base meshes (Shape A, Shape B, or both) for wearable development |
-| **Avatar Limitations Calculator** | Check selected objects against wearable triangle/material/texture limits per category (upper body, hat, helmet, etc.) |
+| **Wearable Limits** | Check selected objects against wearable triangle/material/texture limits per category (upper body, hat, helmet, etc.) |
 
-### Converter
+### Emotes
 
 | Tool | Description |
 |------|-------------|
-| **Particle to Armature** | Convert particle systems into armature-driven animations for Decentraland compatibility |
+| **Import DCL Rig** | Append the official Decentraland avatar rig (Avatar_File.blend) into the scene. Sets scene to 30 fps and 1-300 frame range. Defaults to Avatar_ShapeA visible, Avatar_ShapeB hidden |
+| **Add Prop** | Import the Prop collection (Armature_Prop) for emotes that use hand-held objects |
+| **Limit Area Reference** | Import the Animation_Area_Reference collection (ground plane, boundary circles, animation area box) |
+| **Validate Emote** | Pre-flight check: validates fps (30), frame length (<= 300), active action count, deform-bone boundary keyframes, and root displacement guidance (<= 1m) |
+| **Emote Settings** | Configurable start/end frame, sampling rate (2 recommended), and strict validation toggle |
 
 ### Materials & Textures
 
 | Tool | Description |
 |------|-------------|
 | **Replace Materials** | Replace one or more materials with another across the scene. Supports multi-source selection with search, and scope to selected objects |
-| **Clean Unused Materials** | Remove unused material slots from objects (slots not referenced by any face) and/or globally orphan materials with zero users. Supports selected-only scope and fake-user handling |
-| **Resize Textures** | Batch resize textures to target resolutions (64 - 1024px) with optional backup. Works on selected objects or all textures |
-| **Validate Textures** | Check all textures for glTF/DCL compatibility: non-power-of-two dimensions, oversized textures, non-square textures, and unsupported formats. Configurable max size threshold |
+| **Clean Unused Materials** | Remove unused material slots from objects (slots not referenced by any face) and/or globally orphan materials with zero users |
+| **Resize Textures** | Batch resize textures to target resolutions (64 - 1024px) with optional backup |
+| **Validate Textures** | Check all textures for glTF/DCL compatibility: non-power-of-two dimensions, oversized textures, non-square textures, and unsupported formats |
 | **Enable Backface Culling** | Enable backface culling on all materials in the scene |
+
+### LOD Generator
+
+| Tool | Description |
+|------|-------------|
+| **Generate LODs** | Create Level of Detail copies of selected meshes using decimation. Configurable LOD levels (1-4) with per-level ratio sliders. Defaults: LOD 1 at 50%, LOD 2 at 15%, LOD 3 at 5%. Optionally places LODs in a dedicated collection |
+
+### Viewer
+
+| Tool | Description |
+|------|-------------|
+| **Toggle Display Mode** | Switch viewport display for objects between Bounds, Wire, Textured, and Solid |
 
 ### CleanUp
 
@@ -62,21 +87,9 @@ Compatible with **Blender 2.80 through 5.0+**.
 |------|-------------|
 | **Remove Empty Objects** | Remove empty objects, meshes with no geometry, or meshes without materials |
 | **Apply Transforms** | Apply location, rotation, and scale transforms to selected or all objects |
-| **Rename Mesh Data to Object Name** | Sync mesh data block names with their parent object names |
-| **Rename Textures by Material** | Automatically rename textures based on their material node usage (baseColor, hrm, normal, emissive) |
+| **Rename Mesh Data** | Sync mesh data block names with their parent object names |
+| **Rename Textures** | Automatically rename textures based on their material node usage (baseColor, hrm, normal, emissive) |
 | **Batch Rename Objects** | Rename multiple selected objects with three modes: Add Prefix, Add Suffix, or Find & Replace |
-
-### LOD Generator
-
-| Tool | Description |
-|------|-------------|
-| **Generate LODs** | Create Level of Detail copies of selected meshes using decimation. Configurable LOD levels (1-4) with per-level ratio sliders displayed directly in the panel. Defaults: LOD 1 at 50%, LOD 2 at 15%, LOD 3 at 5%. Optionally places LODs in a dedicated collection |
-
-### Viewer
-
-| Tool | Description |
-|------|-------------|
-| **Toggle Display Mode** | Switch viewport display for objects between Bounds, Wire, Textured, and Solid |
 
 ### Collider Management
 
@@ -87,19 +100,33 @@ Compatible with **Blender 2.80 through 5.0+**.
 | **Strip Materials from Colliders** | Remove all material slots from collider objects |
 | **Simplify Colliders** | Apply decimation to reduce polygon count on collider meshes with adjustable ratio |
 
+### Export
+
+| Tool | Description |
+|------|-------------|
+| **Export glTF (.glb)** | One-click glTF/GLB export with DCL-optimized defaults: binary format, apply modifiers, no cameras/lights. Reports file size after export |
+| **Export Emote GLB** | Export emote animation to GLB with DCL settings: deformation bones only, configurable sampling rate, validation preflight. Warns if file exceeds 1 MB |
+
 ### Documentation
 
 | Tool | Description |
 |------|-------------|
-| **Open Documentation** | Links to Decentraland creator documentation |
-| **Scene Limits Guide** | Links to the official scene limitations reference |
-| **Asset Guidelines** | Links to 3D asset optimization guidelines |
+| **Documentation** | Links to Decentraland creator documentation |
+| **Limits Guide** | Links to the official scene limitations reference |
+| **Asset Guide** | Links to 3D asset optimization guidelines |
+
+### Experimental
+
+| Tool | Description |
+|------|-------------|
+| **Export Lights** | Export lights from a collection to a JSON file formatted for the Decentraland SDK (position, color, intensity, range) |
+| **Particle to Armature** | Convert particle systems into armature-driven animations for Decentraland compatibility |
 
 ---
 
 ## UI Overview
 
-The panel is organized into collapsible sections in the **3D Viewport Sidebar (N key)**. Each section can be expanded or collapsed to keep the workspace clean.
+The panel is organized into collapsible sections in the **3D Viewport Sidebar (N key)**. Each section can be expanded or collapsed to keep the workspace clean. The Experimental section is collapsed by default.
 
 Every tool supports:
 - **Undo** (Ctrl+Z) for all operations
