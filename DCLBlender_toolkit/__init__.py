@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Decentraland Tools",
     "author": "Your Name",
-    "version": (1, 1, 0),
+    "version": (1, 2, 0),
     "blender": (2, 80, 0),
     "location": "3D Viewport > Sidebar (N) > Decentraland Tools",
     "description": "Collection of tools for Decentraland asset creation and optimization (Blender 2.80 - 5.0+)",

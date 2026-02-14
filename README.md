@@ -104,8 +104,9 @@ Compatible with **Blender 2.80 through 5.0+**.
 
 | Tool | Description |
 |------|-------------|
-| **Export glTF (.glb)** | One-click glTF/GLB export with DCL-optimized defaults: binary format, apply modifiers, no cameras/lights. Reports file size after export |
+| **Export glTF (.glb)** | One-click glTF/GLB export with DCL-optimized defaults: binary format, apply modifiers, no cameras/lights. Automatically realizes collection instances into real geometry so instanced objects are properly included in the GLB. Reports file size after export |
 | **Export Emote GLB** | Export emote animation to GLB with DCL settings: deformation bones only, configurable sampling rate, validation preflight. Warns if file exceeds 1 MB |
+| **Atlas Optimizer** | Non-destructive material/texture atlas pass that runs at export time. Merges 2 or 4 compatible PBR materials into a single atlas material (BaseColor + ORM + Normal) to reduce draw calls. Two modes: **Conservative** (only 512px textures, leaves 1024px intact for quality) and **Aggressive** (downscales 1024→512 for maximum optimization). Handles tinted materials (MixRGB/Multiply nodes), tiled UV detection, alpha materials, and proper sRGB↔Linear color space conversion. Operates on temporary duplicates — original scene is never modified |
 
 ### Documentation
 
@@ -138,5 +139,5 @@ Every tool supports:
 
 ## Version
 
-Current version: **1.1.0**
+Current version: **1.2.0**
 Compatible with Blender 2.80 - 5.0+
