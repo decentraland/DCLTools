@@ -86,11 +86,40 @@ class OBJECT_OT_import_template_wearable(bpy.types.Operator):
             self.report({"ERROR"}, f"No .glb file in template folder: {folder}")
             return {"CANCELLED"}
 
+        objects_before = set(bpy.data.objects)
+
         try:
             bpy.ops.import_scene.gltf(filepath=glb_path)
         except Exception as exc:
             self.report({"ERROR"}, f"Failed to import template: {exc}")
             return {"CANCELLED"}
+
+        new_objects = [o for o in bpy.data.objects if o not in objects_before]
+
+        # Each wearable .glb ships the full DCL avatar armature (64 bones) for skinning.
+        # Hide the imported armature so the bone cluster does not obscure the wearable mesh
+        # itself — otherwise the imported armature renders as a sphere-like blob of bones.
+        mesh_objects = []
+        for obj in new_objects:
+            if obj.type == "ARMATURE":
+                obj.hide_set(True)
+            elif obj.type == "MESH":
+                mesh_objects.append(obj)
+
+        for obj in bpy.data.objects:
+            try:
+                obj.select_set(False)
+            except RuntimeError:
+                pass
+
+        for obj in mesh_objects:
+            obj.select_set(True)
+        if mesh_objects:
+            context.view_layer.objects.active = mesh_objects[0]
+            try:
+                bpy.ops.view3d.view_selected()
+            except RuntimeError:
+                pass
 
         self.report({"INFO"}, f"Imported template: {self.template}")
         return {"FINISHED"}
