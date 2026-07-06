@@ -42,6 +42,7 @@ from .ops.import_composite import OBJECT_OT_import_composite
 from .ops.import_dcl_rig import OBJECT_OT_import_dcl_limit_area, OBJECT_OT_import_dcl_prop, OBJECT_OT_import_dcl_rig
 from .ops.install_theme import OBJECT_OT_install_dcl_theme
 from .ops.link_avatar_wearables import OBJECT_OT_link_avatar_wearables
+from .ops.merge_materials import OBJECT_OT_merge_materials
 from .ops.particle_to_armature import OBJECT_OT_particles_to_armature_converter
 from .ops.quick_export_gltf import OBJECT_OT_export_scene, OBJECT_OT_quick_export_gltf, OBJECT_OT_update_all_exported
 from .ops.remove_empty_objects import OBJECT_OT_remove_empty_objects
@@ -429,6 +430,9 @@ def _draw_materials(layout, props):
         row = col.row(align=True)
         _op(row, OBJECT_OT_remove_specular.bl_idname, "Remove Specular", "SPHERE_OFF", "SHADING_RENDERED")
         _op(row, OBJECT_OT_compress_textures.bl_idname, "Compress Images", "PACKAGE_EXPORT", "IMAGE_DATA")
+        col.separator(factor=0.3)
+        row = col.row(align=True)
+        _op(row, OBJECT_OT_merge_materials.bl_idname, "Merge Flat Materials", "REPLACE", "MATERIAL")
 
 
 def _draw_lod(layout, props, context):
@@ -661,6 +665,7 @@ classes = (
     OBJECT_OT_scene_limitations,
     OBJECT_OT_avatar_limitations,
     OBJECT_OT_replace_materials,
+    OBJECT_OT_merge_materials,
     OBJECT_OT_add_source_material_to_list,
     OBJECT_OT_remove_source_material_from_list,
     OBJECT_OT_validate_textures,
