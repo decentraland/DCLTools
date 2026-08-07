@@ -64,8 +64,7 @@ class OBJECT_OT_compress_textures(bpy.types.Operator):
     convert_to_8bit: bpy.props.BoolProperty(
         name="Convert to 8 Bits/Channel",
         description=(
-            "Re-encode high bit depth textures (16-bit PNG, EXR, HDR) down to "
-            "8 bits per channel as required by glTF"
+            "Re-encode high bit depth textures (16-bit PNG, EXR, HDR) down to 8 bits per channel as required by glTF"
         ),
         default=True,
     )
