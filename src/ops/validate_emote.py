@@ -28,9 +28,10 @@ def run_emote_validation(context):
     Validate current emote configuration.
     Returns: dict(errors=[], warnings=[], info=[], metrics={...}, armature=obj_or_none)
     """
-    strict_mode = bool(getattr(context.scene, "dcl_emote_strict_validation", False))
-    start_frame = int(getattr(context.scene, "dcl_emote_start_frame", 1))
-    end_frame = int(getattr(context.scene, "dcl_emote_end_frame", 300))
+    props = context.scene.dcl_tools
+    strict_mode = bool(props.emote_strict_validation)
+    start_frame = int(props.emote_start_frame)
+    end_frame = int(props.emote_end_frame)
 
     result = {
         "errors": [],
