@@ -93,8 +93,9 @@ The panel is organized into collapsible sections in the **3D Viewport Sidebar (N
 | Tool | Description |
 |------|-------------|
 | **Replace Materials** | Replace one or more materials with another across the scene |
+| **Merge Flat Materials** | Collapse every untextured color on the selected objects into one palette-backed material to cut draw calls. Base color, roughness, metallic, emission (including HDR strength) and alpha are baked per swatch into power-of-two atlases; semi-transparent colors land on a second blended material sharing the same palette. Textured and transmissive materials stay separate |
 | **Resize Textures** | Batch resize textures to target resolutions (64-1024px) with optional backup |
-| **Validate Textures** | Check all textures for glTF/DCL compatibility (power-of-two, size, format) |
+| **Validate Textures** | Check all textures for glTF/DCL compatibility (power-of-two, size, format, bit depth) |
 | **Enable Backface Culling** | Enable backface culling on all materials in the scene |
 | **Remove Specular** | Remove specular tint textures and set specular values to 0 on Principled BSDF materials to reduce file size |
 | **Compress Images** | Compress textures to JPEG or PNG with configurable quality. Auto mode uses JPEG for opaque images and PNG for transparent, with an option to force JPEG when no alpha is present |
