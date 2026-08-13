@@ -41,6 +41,7 @@ from .ops.generate_thumbnail import (
 from .ops.import_composite import OBJECT_OT_import_composite
 from .ops.import_dcl_rig import OBJECT_OT_import_dcl_limit_area, OBJECT_OT_import_dcl_prop, OBJECT_OT_import_dcl_rig
 from .ops.install_theme import OBJECT_OT_install_dcl_theme
+from .ops.join_meshes import OBJECT_OT_join_meshes
 from .ops.link_avatar_wearables import OBJECT_OT_link_avatar_wearables
 from .ops.merge_materials import OBJECT_OT_merge_materials
 from .ops.move_colliders import OBJECT_OT_move_colliders_to_collection
@@ -434,6 +435,7 @@ def _draw_materials(layout, props):
         col.separator(factor=0.3)
         row = col.row(align=True)
         _op(row, OBJECT_OT_merge_materials.bl_idname, "Merge Flat Materials", "REPLACE", "MATERIAL")
+        _op(row, OBJECT_OT_join_meshes.bl_idname, "Join Meshes", "CUBE_SPARK", "OUTLINER_OB_MESH")
 
 
 def _draw_lod(layout, props, context):
@@ -651,6 +653,7 @@ classes = (
     OBJECT_OT_simplify_colliders,
     OBJECT_OT_cleanup_colliders,
     OBJECT_OT_move_colliders_to_collection,
+    OBJECT_OT_join_meshes,
     OBJECT_OT_remove_empty_objects,
     OBJECT_OT_export_lights,
     OBJECT_OT_import_dcl_rig,

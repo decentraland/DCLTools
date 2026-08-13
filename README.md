@@ -93,6 +93,7 @@ The panel is organized into collapsible sections in the **3D Viewport Sidebar (N
 | Tool | Description |
 |------|-------------|
 | **Replace Materials** | Replace one or more materials with another across the scene |
+| **Join Meshes** | Join objects that share a material into single meshes to cut draw calls, with a live preview of the result. Groups by material set, UV layers, parent, collection and spatial cell (16m = one parcel, so frustum culling still works). Instanced, animated, armature-bound and modifier-driven objects are skipped and reported — Blender's join silently discards the modifiers of non-active objects. Colliders are joined only with each other. Run **after** Merge Flat Materials |
 | **Merge Flat Materials** | Collapse every untextured color on the selected objects into one palette-backed material to cut draw calls. Base color, roughness, metallic, emission (including HDR strength) and alpha are baked per swatch into power-of-two atlases; semi-transparent colors land on a second blended material sharing the same palette. Textured and transmissive materials stay separate |
 | **Resize Textures** | Batch resize textures to target resolutions (64-1024px) with optional backup |
 | **Validate Textures** | Check all textures for glTF/DCL compatibility (power-of-two, size, format, bit depth) |
