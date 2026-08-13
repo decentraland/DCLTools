@@ -133,6 +133,7 @@ The panel is organized into collapsible sections in the **3D Viewport Sidebar (N
 | **Strip Materials from Colliders** | Remove all material slots from collider objects |
 | **Simplify Colliders** | Apply decimation to reduce polygon count on collider meshes |
 | **Clean Up Colliders** | Remove doubles and dissolve degenerate geometry on collider meshes |
+| **Move to Collection** | Move every collider mesh into its own collection and optionally hide it, so collision geometry stops obstructing the visual mesh. Hiding is viewport-only — hidden colliders are still exported |
 
 ### Export
 

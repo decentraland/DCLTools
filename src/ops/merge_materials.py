@@ -34,6 +34,8 @@ import math
 
 import bpy
 
+from .collider_utils import is_collider
+
 # ---------------------------------------------------------------------------
 # sRGB <-> Linear (matches the glTF / Blender colour pipeline; mirrors
 # export_material_atlas.py so the two tools agree on colour handling)
@@ -509,11 +511,16 @@ class OBJECT_OT_merge_materials(bpy.types.Operator):
             except Exception:
                 pass
 
-        objects = [
+        candidates = [
             o
             for o in (context.selected_objects if self.scope_selected else bpy.data.objects)
             if o.type == "MESH" and o.data is not None
         ]
+        # Colliders are collision-only geometry that Decentraland never renders,
+        # so they have no business in a visual atlas - merging them would just
+        # hand them a material they should not have in the first place.
+        objects = [o for o in candidates if not is_collider(o)]
+        skipped_colliders = len(candidates) - len(objects)
         if not objects:
             self.report({"ERROR"}, "No mesh objects to process")
             return {"CANCELLED"}
@@ -636,6 +643,8 @@ class OBJECT_OT_merge_materials(bpy.types.Operator):
         )
         if leftover:
             msg += f" Left {leftover} textured/special material(s) untouched."
+        if skipped_colliders:
+            msg += f" Skipped {skipped_colliders} collider mesh(es)."
         if emis_scale > 1.0:
             msg += f" Emissive strength {emis_scale:.2f}x preserved."
         self.report({"INFO"}, msg)
@@ -657,3 +666,4 @@ class OBJECT_OT_merge_materials(bpy.types.Operator):
         box.label(text="Color, roughness, metallic and glow are baked per swatch.")
         box.label(text="Transparent colors get a second, blended material.")
         box.label(text="Textured materials always stay separate.")
+        box.label(text="Colliders are skipped - they are never rendered.")

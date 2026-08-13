@@ -43,6 +43,7 @@ from .ops.import_dcl_rig import OBJECT_OT_import_dcl_limit_area, OBJECT_OT_impor
 from .ops.install_theme import OBJECT_OT_install_dcl_theme
 from .ops.link_avatar_wearables import OBJECT_OT_link_avatar_wearables
 from .ops.merge_materials import OBJECT_OT_merge_materials
+from .ops.move_colliders import OBJECT_OT_move_colliders_to_collection
 from .ops.particle_to_armature import OBJECT_OT_particles_to_armature_converter
 from .ops.quick_export_gltf import OBJECT_OT_export_scene, OBJECT_OT_quick_export_gltf, OBJECT_OT_update_all_exported
 from .ops.remove_empty_objects import OBJECT_OT_remove_empty_objects
@@ -463,6 +464,13 @@ def _draw_colliders(layout, props):
         _op(row, OBJECT_OT_strip_materials_from_colliders.bl_idname, "Strip Materials", "SPHERE_OFF", "MATERIAL")
         _op(row, OBJECT_OT_simplify_colliders.bl_idname, "Simplify", "POLYGON", "MOD_DECIM")
         _op(col, OBJECT_OT_cleanup_colliders.bl_idname, "Clean Up Colliders", "ERASER", "BRUSH_DATA")
+        _op(
+            col,
+            OBJECT_OT_move_colliders_to_collection.bl_idname,
+            "Move to Collection",
+            "EYE_DOTTED",
+            "OUTLINER_COLLECTION",
+        )
 
 
 def _draw_generate_thumbnail(layout, props):
@@ -642,6 +650,7 @@ classes = (
     OBJECT_OT_rename_add_collider_suffix,
     OBJECT_OT_simplify_colliders,
     OBJECT_OT_cleanup_colliders,
+    OBJECT_OT_move_colliders_to_collection,
     OBJECT_OT_remove_empty_objects,
     OBJECT_OT_export_lights,
     OBJECT_OT_import_dcl_rig,
