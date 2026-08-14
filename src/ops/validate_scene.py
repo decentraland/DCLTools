@@ -128,7 +128,7 @@ class OBJECT_OT_validate_scene(bpy.types.Operator):
 
         # Transforms
         if transforms:
-            col.label(text=f"Non-applied transforms: {len(transforms)} object(s)", icon="WARNING")
+            col.label(text=f"Non-applied transforms: {len(transforms)} object(s)", icon="WARNING_LARGE")
             for name in transforms[:5]:
                 col.label(text=f"    {name}")
             if len(transforms) > 5:
@@ -138,7 +138,7 @@ class OBJECT_OT_validate_scene(bpy.types.Operator):
 
         # Missing materials
         if missing_mats:
-            col.label(text=f"Missing materials: {len(missing_mats)} object(s)", icon="WARNING")
+            col.label(text=f"Missing materials: {len(missing_mats)} object(s)", icon="WARNING_LARGE")
             for name in missing_mats[:5]:
                 col.label(text=f"    {name}")
             if len(missing_mats) > 5:
@@ -155,6 +155,14 @@ class OBJECT_OT_validate_scene(bpy.types.Operator):
                 col.label(text=f"    ... and {len(non_pot) - 5} more")
         else:
             col.label(text="Textures: All power-of-two", icon="CHECKMARK")
+
+        # File limits (informational, derived from parcel count)
+        layout.separator()
+        box = layout.box()
+        box.label(text="File Limits:", icon="FILE")
+        col = box.column(align=True)
+        col.label(text=f"File Size: {limits['total_file_size_mb']} MB")
+        col.label(text=f"Files: {limits['file_count']:,}")
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=450)
