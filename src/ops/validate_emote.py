@@ -28,10 +28,9 @@ def run_emote_validation(context):
     Validate current emote configuration.
     Returns: dict(errors=[], warnings=[], info=[], metrics={...}, armature=obj_or_none)
     """
-    props = context.scene.dcl_tools
-    strict_mode = bool(props.emote_strict_validation)
-    start_frame = int(props.emote_start_frame)
-    end_frame = int(props.emote_end_frame)
+    strict_mode = bool(getattr(context.scene, "dcl_emote_strict_validation", False))
+    start_frame = int(getattr(context.scene, "dcl_emote_start_frame", 1))
+    end_frame = int(getattr(context.scene, "dcl_emote_end_frame", 300))
 
     result = {
         "errors": [],
@@ -201,7 +200,7 @@ class OBJECT_OT_validate_emote(bpy.types.Operator):
 
         if result.get("warnings"):
             box = layout.box()
-            box.label(text="Warnings", icon="WARNING")
+            box.label(text="Warnings", icon="WARNING_LARGE")
             for message in result["warnings"][:8]:
                 box.label(text=message)
             if len(result["warnings"]) > 8:

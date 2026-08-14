@@ -1,6 +1,6 @@
 """
 Shared helpers for Decentraland scene limit calculations and usage counting.
-Used by scene_limitations.py and validate_scene.py.
+Used by validate_scene.py.
 """
 
 import math
@@ -105,5 +105,5 @@ def status_icon(percentage_str):
     if pct >= 100:
         return "ERROR"
     elif pct >= 80:
-        return "WARNING"
+        return "WARNING_LARGE"
     return "CHECKMARK"
