@@ -42,13 +42,13 @@ from .ops.import_composite import OBJECT_OT_import_composite
 from .ops.import_dcl_rig import OBJECT_OT_import_dcl_limit_area, OBJECT_OT_import_dcl_prop, OBJECT_OT_import_dcl_rig
 from .ops.install_theme import OBJECT_OT_install_dcl_theme
 from .ops.link_avatar_wearables import OBJECT_OT_link_avatar_wearables
+from .ops.live_preview import (
+    OBJECT_OT_preview_in_builder,
+    OBJECT_OT_stop_live_preview,
+    stop_live_preview,
+)
 from .ops.merge_materials import OBJECT_OT_merge_materials
 from .ops.particle_to_armature import OBJECT_OT_particles_to_armature_converter
-from .ops.preview_aang import (
-    OBJECT_OT_preview_in_aang,
-    OBJECT_OT_stop_aang_preview,
-    stop_preview_server,
-)
 from .ops.quick_export_gltf import OBJECT_OT_export_scene, OBJECT_OT_quick_export_gltf, OBJECT_OT_update_all_exported
 from .ops.remove_empty_objects import OBJECT_OT_remove_empty_objects
 from .ops.remove_specular import OBJECT_OT_remove_specular
@@ -330,18 +330,18 @@ class DCLToolsPreferences(bpy.types.AddonPreferences):
 
     bl_idname = __package__
 
-    aang_renderer_url: bpy.props.StringProperty(
-        name="Aang Renderer URL",
-        description="Base URL of the Decentraland Aang renderer deployment used by Preview Wearable / Preview Emote",
+    builder_url: bpy.props.StringProperty(
+        name="Builder URL",
+        description="Builder deployment whose Live Preview page is opened by Preview Wearable / Preview Emote",
         default="",
     )
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "aang_renderer_url")
-        layout.label(text="A Vercel preview link from an aang-renderer PR works, or a bare host.", icon="INFO")
+        layout.prop(self, "builder_url")
+        layout.label(text="A locally served Builder (http://localhost:3000) works too.", icon="INFO")
         layout.separator()
-        layout.operator(OBJECT_OT_stop_aang_preview.bl_idname, icon="X")
+        layout.operator(OBJECT_OT_stop_live_preview.bl_idname, icon="X")
 
 
 # ---------------------------------------------------------------------------
@@ -402,7 +402,7 @@ def _draw_avatars(layout, props):
         _op(row, OBJECT_OT_avatar_limitations.bl_idname, "Wearable Limits", "SHIRT_SPORT", "INFO")
         col.separator(factor=0.3)
         _op(
-            col, OBJECT_OT_preview_in_aang.bl_idname, "Preview Wearable", "EYE_DOTTED", "HIDE_OFF"
+            col, OBJECT_OT_preview_in_builder.bl_idname, "Preview Wearable", "EYE_DOTTED", "HIDE_OFF"
         ).content_type = "WEARABLE"
 
 
@@ -430,7 +430,9 @@ def _draw_emotes(layout, props):
         col.separator(factor=0.3)
 
         _op(col, OBJECT_OT_validate_emote.bl_idname, "Validate Emote", "PROGRESS_CHECK", "CHECKMARK")
-        _op(col, OBJECT_OT_preview_in_aang.bl_idname, "Preview Emote", "EYE_DOTTED", "HIDE_OFF").content_type = "EMOTE"
+        _op(
+            col, OBJECT_OT_preview_in_builder.bl_idname, "Preview Emote", "EYE_DOTTED", "HIDE_OFF"
+        ).content_type = "EMOTE"
         col.separator(factor=0.3)
 
         settings = col.box()
@@ -696,8 +698,8 @@ classes = (
     OBJECT_OT_enable_backface_culling,
     OBJECT_OT_link_avatar_wearables,
     OBJECT_OT_particles_to_armature_converter,
-    OBJECT_OT_preview_in_aang,
-    OBJECT_OT_stop_aang_preview,
+    OBJECT_OT_preview_in_builder,
+    OBJECT_OT_stop_live_preview,
     OBJECT_OT_avatar_limitations,
     OBJECT_OT_replace_materials,
     OBJECT_OT_merge_materials,
@@ -749,8 +751,8 @@ def register():
 
 
 def unregister():
-    # Tear down the preview HTTP server thread before the operator classes disappear.
-    stop_preview_server()
+    # Tear down the live preview bridge thread before the operator classes disappear.
+    stop_live_preview()
 
     for cls in reversed(classes):
         unregister_class(cls)
