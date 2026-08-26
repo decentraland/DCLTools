@@ -4,7 +4,7 @@ import bpy
 class OBJECT_OT_validate_textures(bpy.types.Operator):
     bl_idname = "object.validate_textures"
     bl_label = "Validate Textures"
-    bl_description = "Check all textures for Decentraland/glTF compatibility (power-of-two, size, format)"
+    bl_description = "Check all textures for Decentraland/glTF compatibility (power-of-two, size, format, bit depth)"
     bl_options = {"REGISTER", "UNDO"}
 
     max_size: bpy.props.IntProperty(
@@ -47,6 +47,11 @@ class OBJECT_OT_validate_textures(bpy.types.Operator):
         if w != h:
             issues.append(("WARNING", f"Non-square ({w}x{h})"))
 
+        # Bit depth check: >8 bits/channel sources (16-bit PNG, EXR, HDR)
+        # load as float buffers in Blender
+        if image.is_float:
+            issues.append(("WARNING", "More than 8 bits/channel (16/32-bit source, use 8-bit)"))
+
         # Format check for glTF compatibility
         filepath = image.filepath.lower() if image.filepath else ""
         if image.packed_file:
@@ -67,15 +72,32 @@ class OBJECT_OT_validate_textures(bpy.types.Operator):
             return {"FINISHED"}
 
         total_issues = 0
+        problem_names = []
+
+        print(f"\n=== DCL Validate Textures ({len(textures)} texture(s), max size {self.max_size}px) ===")
         for img in textures:
             issues = self._validate_texture(img)
-            total_issues += len(issues)
+            size = f"{img.size[0]}x{img.size[1]}"
+            if issues:
+                total_issues += len(issues)
+                problem_names.append(img.name)
+                worst = "ERROR" if any(level == "ERROR" for level, _ in issues) else "WARNING"
+                print(f"[{worst}] {img.name} ({size})")
+                for level, msg in issues:
+                    print(f"    {level}: {msg}")
+            else:
+                print(f"[OK] {img.name} ({size})")
+        print("=== End of texture report ===\n")
 
         if total_issues == 0:
             self.report({"INFO"}, f"All {len(textures)} textures passed validation")
         else:
+            preview = ", ".join(problem_names[:4])
+            if len(problem_names) > 4:
+                preview += f" (+{len(problem_names) - 4} more)"
             self.report(
-                {"WARNING"}, f"Found {total_issues} issue(s) across {len(textures)} textures. See dialog for details."
+                {"WARNING"},
+                f"{len(problem_names)} texture(s) with issues: {preview} - full report in console",
             )
         return {"FINISHED"}
 
@@ -112,7 +134,7 @@ class OBJECT_OT_validate_textures(bpy.types.Operator):
                 col = box.column(align=True)
                 col.label(text=f"{img.name} ({img.size[0]}x{img.size[1]})")
                 for level, msg in issues:
-                    icon = "ERROR" if level == "ERROR" else "WARNING"
+                    icon = "ERROR" if level == "ERROR" else "WARNING_LARGE"
                     col.label(text=f"    {msg}", icon=icon)
             if len(errored) > 15:
                 box.label(text=f"    ... and {len(errored) - 15} more")
@@ -120,16 +142,16 @@ class OBJECT_OT_validate_textures(bpy.types.Operator):
         # Warnings
         if warned:
             box = layout.box()
-            box.label(text=f"{len(warned)} texture(s) with warnings:", icon="WARNING")
+            box.label(text=f"{len(warned)} texture(s) with warnings:", icon="WARNING_LARGE")
             for img, issues in warned[:15]:
                 col = box.column(align=True)
                 col.label(text=f"{img.name} ({img.size[0]}x{img.size[1]})")
                 for _level, msg in issues:
-                    col.label(text=f"    {msg}", icon="WARNING")
+                    col.label(text=f"    {msg}", icon="WARNING_LARGE")
             if len(warned) > 15:
                 box.label(text=f"    ... and {len(warned) - 15} more")
 
-        # Passed
+        # Passed (names go to the console report only)
         if passed:
             box = layout.box()
             box.label(text=f"{len(passed)} texture(s) OK", icon="CHECKMARK")
