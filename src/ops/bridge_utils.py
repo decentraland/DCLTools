@@ -9,7 +9,7 @@ be exercised without Blender.
 """
 
 import json
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 DEFAULT_PREVIEWER_URL = "https://decentraland.org/builder/live-preview"
 
@@ -66,6 +66,21 @@ def live_preview_url(page_url, bridge_url=""):
     return url
 
 
+def previewer_origin(page_url):
+    """The ``scheme://host[:port]`` origin of the previewer page.
+
+    Used to scope the bridge's CORS header to the one page allowed to read it.
+    Empty when no origin can be derived (the bridge then falls back to ``*``).
+    """
+    url = normalize_previewer_url(page_url)
+    if not url:
+        return ""
+    parts = urlsplit(url)
+    if not parts.scheme or not parts.netloc:
+        return ""
+    return f"{parts.scheme}://{parts.netloc}"
+
+
 # Body-mesh collections created by Import DCL Rig. Meshes in them are only a
 # problem for full-scene exports: an explicit selection of them is a
 # deliberate body_shape/skin wearable.
@@ -84,9 +99,7 @@ def wearable_export_error(objects, *, selected_only):
 
     if not objects:
         return (
-            "nothing is selected — select the wearable mesh"
-            if selected_only
-            else "the scene has no exportable objects"
+            "nothing is selected — select the wearable mesh" if selected_only else "the scene has no exportable objects"
         )
 
     if not any(obj_type == "MESH" for obj_type, _ in objects):
@@ -101,9 +114,7 @@ def wearable_export_error(objects, *, selected_only):
 
     hint = 'enable "Selected Only" and select the wearable mesh'
 
-    if any(
-        REFERENCE_AVATAR_COLLECTIONS.intersection(colls) for obj_type, colls in objects if obj_type == "MESH"
-    ):
+    if any(REFERENCE_AVATAR_COLLECTIONS.intersection(colls) for obj_type, colls in objects if obj_type == "MESH"):
         return f"the export would include the reference avatar's body — {hint}"
 
     armature_count = sum(1 for obj_type, _ in objects if obj_type == "ARMATURE")

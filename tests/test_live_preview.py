@@ -57,7 +57,9 @@ class TestPreviewerURL:
 
     def test_live_preview_url_is_used_as_is(self):
         # The field holds the full page URL; nothing is appended to it.
-        assert bridge_utils.live_preview_url("http://localhost:3000/live-preview/") == "http://localhost:3000/live-preview"
+        assert (
+            bridge_utils.live_preview_url("http://localhost:3000/live-preview/") == "http://localhost:3000/live-preview"
+        )
 
     def test_live_preview_url_carries_the_bridge_as_a_query_param(self):
         url = bridge_utils.live_preview_url("http://localhost:3000/live-preview", "http://127.0.0.1:54321")
@@ -69,6 +71,21 @@ class TestPreviewerURL:
 
     def test_default_is_the_production_page(self):
         assert bridge_utils.DEFAULT_PREVIEWER_URL == "https://decentraland.org/builder/live-preview"
+
+
+class TestPreviewerOrigin:
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            ("https://decentraland.org/builder/live-preview", "https://decentraland.org"),
+            ("http://localhost:3000/live-preview", "http://localhost:3000"),
+            ("decentraland.zone/builder/live-preview", "https://decentraland.zone"),
+            ("", ""),
+            (None, ""),
+        ],
+    )
+    def test_origin_is_scheme_and_host(self, url, expected):
+        assert bridge_utils.previewer_origin(url) == expected
 
 
 class TestReadableCategory:
@@ -133,11 +150,16 @@ class TestWearableExportError:
 
 class TestWiring:
     def test_server_binds_to_loopback_only(self):
-        # Security tripwire: the bridge serves the local export with CORS *,
+        # Security tripwire: the bridge serves the local export to the browser,
         # so it must never listen on anything but loopback.
         live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
         assert '("127.0.0.1", port)' in live_src
         assert '"0.0.0.0"' not in live_src
+
+    def test_cors_is_scoped_to_the_previewer_origin(self):
+        live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
+        assert '_server.allowed_origin or "*"' in live_src
+        assert "_server.start(self.bridge_port, previewer_origin(previewer_url))" in live_src
 
     def test_wearable_exports_are_validated_before_running(self):
         # Both the initial export and live re-exports go through the scope

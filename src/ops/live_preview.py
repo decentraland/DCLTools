@@ -34,6 +34,7 @@ from .bridge_utils import (
     build_state_payload,
     live_preview_url,
     normalize_previewer_url,
+    previewer_origin,
     readable_category,
     wearable_export_error,
 )
@@ -56,13 +57,14 @@ _TIMER_INTERVAL = 0.5
 
 
 class _BridgeRequestHandler(BaseHTTPRequestHandler):
-    """Serves /state and /model.glb with CORS enabled so the Builder page may fetch them."""
+    """Serves /state and /model.glb, with CORS scoped to the previewer page's origin."""
 
     def _send(self, code, content_type, body):
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _server.allowed_origin or "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "*")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
@@ -76,9 +78,15 @@ class _BridgeRequestHandler(BaseHTTPRequestHandler):
         state, model_path = _server.snapshot()
         if path == "/state" and state:
             self._send(200, "application/json", state.encode("utf-8"))
-        elif path == f"/{MODEL_FILE}" and model_path and os.path.isfile(model_path):
-            with open(model_path, "rb") as f:
-                self._send(200, "model/gltf-binary", f.read())
+        elif path == f"/{MODEL_FILE}" and model_path:
+            try:
+                with open(model_path, "rb") as f:
+                    body = f.read()
+            except OSError:
+                # stop() may delete the directory between the snapshot and the read.
+                self._send(404, "text/plain", b"not found")
+            else:
+                self._send(200, "model/gltf-binary", body)
         else:
             self._send(404, "text/plain", b"not found")
 
@@ -96,6 +104,7 @@ class _BridgeServer:
         self._lock = threading.Lock()
         self._state = ""
         self.directory = None
+        self.allowed_origin = ""
 
     @property
     def running(self):
@@ -105,7 +114,8 @@ class _BridgeServer:
     def port(self):
         return self._httpd.server_address[1] if self._httpd else None
 
-    def start(self, port=0):
+    def start(self, port=0, allowed_origin=""):
+        self.allowed_origin = allowed_origin
         if self.running:
             if port and port != self.port:
                 # An explicitly requested port beats the one already bound.
@@ -141,8 +151,10 @@ class _BridgeServer:
 
         self._httpd = None
         self._thread = None
-        self._state = ""
-        self.directory = None
+        self.allowed_origin = ""
+        with self._lock:
+            self._state = ""
+            self.directory = None
 
 
 _server = _BridgeServer()
@@ -349,9 +361,7 @@ def _bound_meshes(armatures):
             continue
         if any(coll.name in REFERENCE_AVATAR_COLLECTIONS for coll in obj.users_collection):
             continue
-        if obj.parent in armatures or any(
-            mod.type == "ARMATURE" and mod.object in armatures for mod in obj.modifiers
-        ):
+        if obj.parent in armatures or any(mod.type == "ARMATURE" and mod.object in armatures for mod in obj.modifiers):
             meshes.add(obj)
     return meshes
 
@@ -553,7 +563,7 @@ class OBJECT_OT_preview_in_builder(bpy.types.Operator):
         is_emote = self.content_type == "EMOTE"
 
         try:
-            directory = _server.start(self.bridge_port)
+            directory = _server.start(self.bridge_port, previewer_origin(previewer_url))
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start the local bridge: {exc}")
             return {"CANCELLED"}
@@ -575,6 +585,8 @@ class OBJECT_OT_preview_in_builder(bpy.types.Operator):
         try:
             webbrowser.open(live_preview_url(previewer_url, bridge_url))
         except Exception as exc:
+            # Don't leave handlers and the timer re-exporting for a page nobody opened.
+            stop_live_session()
             self.report({"ERROR"}, f"Could not open the browser: {exc}")
             return {"CANCELLED"}
 
