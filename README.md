@@ -10,6 +10,7 @@ A comprehensive Blender extension for Decentraland scene, wearable, and emote cr
 - [Features](#features)
   - [Scene Creation](#scene-creation)
   - [Avatars](#avatars)
+  - [Preview in Aang Renderer](#preview-in-aang-renderer)
   - [Emotes](#emotes)
   - [Materials & Textures](#materials--textures)
   - [Generate Thumbnail](#generate-thumbnail)
@@ -74,6 +75,55 @@ The panel is organized into collapsible sections in the **3D Viewport Sidebar (N
 |------|-------------|
 | **Avatar Shapes** | Import editable Decentraland avatar base meshes (Shape A, Shape B, or both) for wearable development |
 | **Wearable Limits** | Check selected objects against wearable triangle/material/texture limits per category |
+
+### Preview in Aang Renderer
+
+Export the wearable or emote you are working on and open it on a live avatar in the
+[Aang renderer](https://github.com/decentraland/aang-renderer) — the same renderer the Marketplace, Builder and
+Profile pages use — so you see the DCL toon shading, hiding rules and animation playback without publishing anything.
+
+| Tool | Description |
+|------|-------------|
+| **Preview Wearable** | Export the model to GLB and equip it on a base avatar in the chosen category |
+| **Preview Emote** | Export the animation (validation and frame range included) and play it on a base avatar |
+| **Stop Preview Server** | Shut down the local file server and delete the exported preview files |
+
+**Setup:** none needed — a known-good deployment ships as the default. To use a different one, set it in
+**Edit > Preferences > Add-ons > Decentraland Tools** or in the first field of the preview dialog; it is saved back
+to the preferences. A bare host (`aang-renderer-abc123.vercel.app`) is accepted, as are URLs that still carry a
+path or query, so a link copied straight out of a PR comment works, and a locally served build
+(`http://localhost:8080`) works too.
+
+> The Renderer URL is **not** the add-on's own file server. The add-on serves your exported GLB on a random
+> `127.0.0.1` port; the Renderer URL must point at a hosted Aang build. Pointing it at `127.0.0.1` gives
+> `ERR_CONNECTION_REFUSED`.
+
+**Keeping the default fresh:** the [aang-renderer](https://github.com/decentraland/aang-renderer) CI publishes a
+**Vercel preview** on every pull request and has no production deploy job, so there is no permanent domain — the
+project's `aang-renderer.vercel.app` alias returns 404 and per-branch aliases die with their branch. Immutable
+per-deployment URLs do survive, so `DEFAULT_RENDERER_URL` in `src/ops/aang_utils.py` pins one. Grab a newer one
+from the "Vercel Preview is ready!" comment on any recent aang-renderer PR when you want to track a newer build.
+
+**How it works:** the renderer loads custom content in `builder` mode from a base64 entity definition that
+references its model by URL. The add-on therefore exports a GLB to a temporary folder, serves that folder over a
+local HTTP server bound to `127.0.0.1` on an OS-assigned port, and opens
+`<renderer>?mode=builder&bodyShape=...&base64=...` in your browser. The server only ever exposes that temporary
+folder, and it is shut down when you disable the add-on or click **Stop Preview Server**.
+
+**Options:** the wearable dialog mirrors the Builder's own editor — a **Basics** group (category, idle emote,
+*Selected Only* for the export; include the armature when the mesh is skinned) and an **Overrides** group with three
+multi-select dropdowns:
+
+| Override | Entity field | Effect |
+|------|-------------|--------|
+| **Base body** | `removesDefaultHiding` | Switches default hiding back on. Picking *Hands* keeps the avatar's hands visible under an upper body, which otherwise hides them |
+| **Hides** | `hides` | Categories this wearable hides on the avatar |
+| **Replaces** | `replaces` | Categories this wearable replaces; the renderer folds these into the hiding list |
+
+Emote previews offer *Loop* instead, and both offer the body shape to render on.
+
+> Because the page is served over HTTPS and the model over `http://127.0.0.1`, use Chrome, Edge or Firefox — they
+> treat loopback as a secure origin. Safari blocks that combination.
 
 ### Emotes
 
