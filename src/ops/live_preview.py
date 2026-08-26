@@ -7,11 +7,12 @@ polls the bridge and hot-swaps the model on a live avatar:
     GET /state      -> {"version", "type", "name", "category"}
     GET /model.glb  -> the latest export
 
-Category, overrides, body shape and emote playback are all chosen on the
-Builder page; the add-on only exports and serves. Refresh is always live:
-saving the .blend re-exports immediately, scene edits re-export after a quiet
-period, and each re-export bumps ``version`` so the page picks it up on its
-next poll. The bridge binds to 127.0.0.1 on an OS-assigned port and is torn
+Overrides, body shape and emote playback are all chosen on the Builder page;
+the add-on only exports and serves. Refresh is always live: saving the .blend
+re-exports immediately, scene edits re-export after a quiet period, and each
+re-export bumps ``version`` so the page picks it up on its next poll. The
+bridge binds to 127.0.0.1 (OS-assigned port unless one is set under Advanced),
+its URL is passed to the page as the ``bridge`` query param, and it is torn
 down on Stop Live Preview or when the add-on is unregistered.
 """
 
@@ -27,14 +28,15 @@ import bpy
 from bpy.app.handlers import persistent
 
 from .bridge_utils import (
-    DEFAULT_BUILDER_URL,
+    DEFAULT_PREVIEWER_URL,
+    REFERENCE_AVATAR_COLLECTIONS,
     WEARABLE_CATEGORIES,
     build_state_payload,
     live_preview_url,
-    normalize_builder_url,
+    normalize_previewer_url,
     readable_category,
+    wearable_export_error,
 )
-from .emote_utils import find_avatar_armature
 
 MODEL_FILE = "model.glb"
 
@@ -103,12 +105,16 @@ class _BridgeServer:
     def port(self):
         return self._httpd.server_address[1] if self._httpd else None
 
-    def start(self):
+    def start(self, port=0):
         if self.running:
-            return self.directory
+            if port and port != self.port:
+                # An explicitly requested port beats the one already bound.
+                self.stop()
+            else:
+                return self.directory
 
         self.directory = tempfile.mkdtemp(prefix="dcl_live_preview_")
-        self._httpd = ThreadingHTTPServer(("127.0.0.1", 0), _BridgeRequestHandler)
+        self._httpd = ThreadingHTTPServer(("127.0.0.1", port), _BridgeRequestHandler)
         self._httpd.daemon_threads = True
         self._thread = threading.Thread(target=self._httpd.serve_forever, name="dcl-live-preview", daemon=True)
         self._thread.start()
@@ -321,46 +327,77 @@ def get_addon_preferences(context):
     return addon.preferences if addon else None
 
 
-def _detect_content_type(context):
-    """Emote if an avatar armature carries an action, wearable otherwise."""
-    armature = find_avatar_armature(context)
-    if armature and armature.animation_data and armature.animation_data.action:
-        return "EMOTE"
-    return "WEARABLE"
+def _bound_armatures(objects):
+    """The armatures the given objects are skinned or parented to."""
+    armatures = set()
+    for obj in objects:
+        for mod in getattr(obj, "modifiers", ()):
+            if mod.type == "ARMATURE" and mod.object is not None:
+                armatures.add(mod.object)
+        if obj.parent is not None and obj.parent.type == "ARMATURE":
+            armatures.add(obj.parent)
+    return armatures
+
+
+def _bound_meshes(armatures):
+    """Meshes bound to the given armatures, minus the reference avatar's body."""
+    if not armatures:
+        return set()
+    meshes = set()
+    for obj in bpy.context.view_layer.objects:
+        if obj.type != "MESH":
+            continue
+        if any(coll.name in REFERENCE_AVATAR_COLLECTIONS for coll in obj.users_collection):
+            continue
+        if obj.parent in armatures or any(
+            mod.type == "ARMATURE" and mod.object in armatures for mod in obj.modifiers
+        ):
+            meshes.add(obj)
+    return meshes
 
 
 def _export_wearable_glb(out_path, selected_only):
-    """Export the wearable to GLB, degrading gracefully on older exporters."""
-    kwargs_sets = [
-        {
-            "filepath": out_path,
-            "export_format": "GLB",
-            "use_selection": selected_only,
-            "export_apply": True,
-            "export_animations": False,
-            "export_cameras": False,
-            "export_lights": False,
-        },
-        {
-            "filepath": out_path,
-            "export_format": "GLB",
-            "use_selection": selected_only,
-            "export_apply": True,
-        },
-        {
-            "filepath": out_path,
-            "export_format": "GLB",
-        },
-    ]
+    """Export the wearable to GLB, returning the error (or None)."""
+    extras = []
+    if selected_only:
+        selected = list(bpy.context.selected_objects)
+        # Complete the selection in both directions: a mesh pulls in the rig
+        # it is bound to, and an armature pulls in the wearable meshes bound
+        # to it (never the reference body — that is the full-scene footgun).
+        extras = [arm for arm in _bound_armatures(selected) if arm not in selected]
+        selected_armatures = {obj for obj in selected if obj.type == "ARMATURE"}
+        extras += [mesh for mesh in _bound_meshes(selected_armatures) if mesh not in selected]
+        scope_objects = selected + extras
+    else:
+        scope_objects = bpy.context.view_layer.objects
 
-    last_error = None
-    for kwargs in kwargs_sets:
-        try:
-            bpy.ops.export_scene.gltf(**kwargs)
-            return None
-        except Exception as exc:
-            last_error = exc
-    return last_error
+    scope = [(obj.type, [coll.name for coll in obj.users_collection]) for obj in scope_objects]
+    error = wearable_export_error(scope, selected_only=selected_only)
+    if error:
+        return error
+
+    restore = []
+    try:
+        for extra in extras:
+            restore.append((extra, extra.hide_get()))
+            extra.hide_set(False)
+            extra.select_set(True)
+        bpy.ops.export_scene.gltf(
+            filepath=out_path,
+            export_format="GLB",
+            use_selection=selected_only,
+            export_apply=True,
+            export_animations=False,
+            export_cameras=False,
+            export_lights=False,
+        )
+    except Exception as exc:
+        return str(exc)
+    finally:
+        for extra, was_hidden in restore:
+            extra.select_set(False)
+            extra.hide_set(was_hidden)
+    return None
 
 
 def _make_exporter(directory, is_emote, selected_only):
@@ -396,6 +433,14 @@ def _make_exporter(directory, is_emote, selected_only):
 # ---------------------------------------------------------------------------
 
 
+def _apply_previewer_url_reset(op, _context):
+    # A dialog cannot host a real button that edits its own properties, so the
+    # reset icon is a self-clearing toggle whose update does the work.
+    if op.reset_previewer_url:
+        op.reset_previewer_url = False
+        op.previewer_url = DEFAULT_PREVIEWER_URL
+
+
 class OBJECT_OT_preview_in_builder(bpy.types.Operator):
     bl_idname = "object.preview_in_builder"
     bl_label = "Live Preview in Builder"
@@ -405,24 +450,15 @@ class OBJECT_OT_preview_in_builder(bpy.types.Operator):
     )
     bl_options = {"REGISTER"}
 
-    builder_url: bpy.props.StringProperty(
-        name="Builder URL",
-        description=(
-            "Builder deployment whose Live Preview page to open. A locally served Builder "
-            "(http://localhost:3000) works too. Saved to the add-on preferences"
-        ),
-        default=DEFAULT_BUILDER_URL,
-    )
-
+    # Preset by the Preview Wearable / Preview Emote buttons; not shown in the dialog.
     content_type: bpy.props.EnumProperty(
         name="Preview",
-        description="What to stream to the Builder",
         items=[
-            ("AUTO", "Auto", "Emote if the avatar armature has an action, wearable otherwise"),
             ("WEARABLE", "Wearable", "Export the model and equip it on the avatar"),
             ("EMOTE", "Emote", "Export the animation and play it on the avatar"),
         ],
-        default="AUTO",
+        default="WEARABLE",
+        options={"HIDDEN"},
     )
 
     category: bpy.props.EnumProperty(
@@ -434,47 +470,90 @@ class OBJECT_OT_preview_in_builder(bpy.types.Operator):
 
     selected_only: bpy.props.BoolProperty(
         name="Selected Only",
-        description="Export only the selected objects. Remember to include the armature for skinned wearables",
+        description=(
+            "Export only the selected objects. Selecting the wearable mesh includes its armature "
+            "automatically, and selecting the armature includes the wearable meshes bound to it"
+        ),
+        default=True,
+    )
+
+    show_advanced: bpy.props.BoolProperty(
+        name="Advanced",
         default=False,
+        options={"HIDDEN"},
+    )
+
+    previewer_url: bpy.props.StringProperty(
+        name="Previewer URL",
+        description=(
+            "Live Preview page to open. A locally served one "
+            "(http://localhost:3000/live-preview) works too. Saved to the add-on preferences"
+        ),
+        default=DEFAULT_PREVIEWER_URL,
+    )
+
+    reset_previewer_url: bpy.props.BoolProperty(
+        name="Reset Previewer URL",
+        description="Restore the default previewer URL",
+        default=False,
+        update=_apply_previewer_url_reset,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+
+    bridge_port: bpy.props.IntProperty(
+        name="Blender Port",
+        description="Port the local bridge listens on. 0 picks a free port automatically",
+        default=0,
+        min=0,
+        max=65535,
     )
 
     def invoke(self, context, event):
         prefs = get_addon_preferences(context)
-        saved = getattr(prefs, "builder_url", "") if prefs else ""
-        self.builder_url = saved or DEFAULT_BUILDER_URL
+        saved = getattr(prefs, "previewer_url", "") if prefs else ""
+        self.previewer_url = saved or DEFAULT_PREVIEWER_URL
         return context.window_manager.invoke_props_dialog(self, width=380)
 
     def draw(self, context):
         layout = self.layout
 
-        layout.prop(self, "builder_url")
-        layout.separator()
-
-        layout.prop(self, "content_type")
-        resolved = self.content_type if self.content_type != "AUTO" else _detect_content_type(context)
-
-        if resolved == "WEARABLE":
+        if self.content_type == "WEARABLE":
             layout.prop(self, "category")
             layout.prop(self, "selected_only")
-        else:
-            layout.label(text="Uses the Emote Settings frame range.", icon="INFO")
-        layout.label(text="Overrides, body shape and playback live on the Builder page.", icon="INFO")
+
+        row = layout.row()
+        row.alignment = "LEFT"
+        row.prop(
+            self,
+            "show_advanced",
+            icon="TRIA_DOWN" if self.show_advanced else "TRIA_RIGHT",
+            emboss=False,
+        )
+        if self.show_advanced:
+            box = layout.box()
+            box.use_property_split = True
+            box.use_property_decorate = False
+            row = box.row(align=True)
+            row.prop(self, "previewer_url")
+            sub = row.row(align=True)
+            sub.use_property_split = False
+            sub.prop(self, "reset_previewer_url", text="", icon="LOOP_BACK", emboss=False)
+            box.prop(self, "bridge_port")
 
     def execute(self, context):
-        builder_url = normalize_builder_url(self.builder_url)
-        if not builder_url:
-            self.report({"ERROR"}, "Set the Builder URL first (Preferences > Add-ons > Decentraland Tools).")
+        previewer_url = normalize_previewer_url(self.previewer_url)
+        if not previewer_url:
+            self.report({"ERROR"}, "Set the Previewer URL first (Preferences > Add-ons > Decentraland Tools).")
             return {"CANCELLED"}
 
         prefs = get_addon_preferences(context)
-        if prefs and prefs.builder_url != builder_url:
-            prefs.builder_url = builder_url
+        if prefs and prefs.previewer_url != previewer_url:
+            prefs.previewer_url = previewer_url
 
-        content_type = self.content_type if self.content_type != "AUTO" else _detect_content_type(context)
-        is_emote = content_type == "EMOTE"
+        is_emote = self.content_type == "EMOTE"
 
         try:
-            directory = _server.start()
+            directory = _server.start(self.bridge_port)
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start the local bridge: {exc}")
             return {"CANCELLED"}
@@ -492,20 +571,14 @@ class OBJECT_OT_preview_in_builder(bpy.types.Operator):
             category=self.category,
         )
 
+        bridge_url = f"http://127.0.0.1:{_server.port}"
         try:
-            webbrowser.open(live_preview_url(builder_url))
+            webbrowser.open(live_preview_url(previewer_url, bridge_url))
         except Exception as exc:
             self.report({"ERROR"}, f"Could not open the browser: {exc}")
             return {"CANCELLED"}
 
-        bridge_url = f"http://127.0.0.1:{_server.port}"
-        # The Builder page can't discover the OS-assigned port, so hand the
-        # address over via the clipboard for its Bridge URL field.
-        context.window_manager.clipboard = bridge_url
-        self.report(
-            {"INFO"},
-            f"Bridge on {bridge_url} (copied to clipboard) — paste it into the Builder page's Bridge URL field.",
-        )
+        self.report({"INFO"}, f"Streaming to the Builder Live Preview page (bridge on {bridge_url}).")
         return {"FINISHED"}
 
 

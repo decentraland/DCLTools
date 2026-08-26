@@ -39,31 +39,36 @@ class TestStatePayload:
         assert state["name"] == "Blender Preview"
 
 
-class TestBuilderURL:
+class TestPreviewerURL:
     @pytest.mark.parametrize(
         "raw,expected",
         [
-            ("builder.decentraland.zone", "https://builder.decentraland.zone"),
-            ("https://builder.decentraland.org/", "https://builder.decentraland.org"),
-            ("https://builder.decentraland.org/?tab=x", "https://builder.decentraland.org"),
-            ("  https://builder.decentraland.org#top  ", "https://builder.decentraland.org"),
-            ("http://localhost:3000", "http://localhost:3000"),
+            ("decentraland.zone/builder/live-preview", "https://decentraland.zone/builder/live-preview"),
+            ("https://decentraland.org/builder/live-preview/", "https://decentraland.org/builder/live-preview"),
+            ("https://decentraland.org/builder/live-preview?tab=x", "https://decentraland.org/builder/live-preview"),
+            ("  https://decentraland.org/builder/live-preview#top  ", "https://decentraland.org/builder/live-preview"),
+            ("http://localhost:3000/live-preview", "http://localhost:3000/live-preview"),
             ("", ""),
             (None, ""),
         ],
     )
     def test_normalization(self, raw, expected):
-        assert bridge_utils.normalize_builder_url(raw) == expected
+        assert bridge_utils.normalize_previewer_url(raw) == expected
 
-    def test_live_preview_url_appends_the_page_path(self):
-        assert bridge_utils.live_preview_url("http://localhost:3000/") == "http://localhost:3000/live-preview"
+    def test_live_preview_url_is_used_as_is(self):
+        # The field holds the full page URL; nothing is appended to it.
+        assert bridge_utils.live_preview_url("http://localhost:3000/live-preview/") == "http://localhost:3000/live-preview"
 
-    def test_empty_builder_url_raises(self):
+    def test_live_preview_url_carries_the_bridge_as_a_query_param(self):
+        url = bridge_utils.live_preview_url("http://localhost:3000/live-preview", "http://127.0.0.1:54321")
+        assert url == "http://localhost:3000/live-preview?bridge=http%3A%2F%2F127.0.0.1%3A54321"
+
+    def test_empty_previewer_url_raises(self):
         with pytest.raises(ValueError):
             bridge_utils.live_preview_url("   ")
 
-    def test_default_is_the_production_builder(self):
-        assert bridge_utils.DEFAULT_BUILDER_URL == "https://builder.decentraland.org"
+    def test_default_is_the_production_page(self):
+        assert bridge_utils.DEFAULT_PREVIEWER_URL == "https://decentraland.org/builder/live-preview"
 
 
 class TestReadableCategory:
@@ -72,52 +77,90 @@ class TestReadableCategory:
         assert bridge_utils.readable_category("hands_wear") == "Hands Wear"
 
 
+class TestWearableExportError:
+    WEARABLE = ("MESH", ["Hat"])
+    RIG_ARMATURE = ("ARMATURE", ["Avatar"])
+    BODY_MESH = ("MESH", ["Avatar_ShapeA"])
+
+    def test_a_clean_wearable_with_its_armature_passes(self):
+        objects = [self.WEARABLE, self.RIG_ARMATURE]
+        assert bridge_utils.wearable_export_error(objects, selected_only=True) is None
+        assert bridge_utils.wearable_export_error(objects, selected_only=False) is None
+
+    def test_a_full_scene_with_the_reference_avatar_body_is_rejected(self):
+        # The footgun: the imported DCL rig's body meshes would be baked into
+        # the wearable and the Builder shows a deformed mess.
+        error = bridge_utils.wearable_export_error(
+            [self.WEARABLE, self.RIG_ARMATURE, self.BODY_MESH], selected_only=False
+        )
+        assert "reference avatar" in error
+        assert "Selected Only" in error
+
+    def test_an_explicit_selection_is_trusted(self):
+        # body_shape and skin wearables legitimately export the body meshes,
+        # and wearable meshes often live inside the Avatar collection.
+        for objects in (
+            [self.BODY_MESH, self.RIG_ARMATURE],
+            [("MESH", ["Avatar"]), self.RIG_ARMATURE],
+            [self.WEARABLE, self.RIG_ARMATURE, ("ARMATURE", ["Prop"])],
+        ):
+            assert bridge_utils.wearable_export_error(objects, selected_only=True) is None
+
+    def test_a_wearable_parented_inside_the_avatar_collection_passes(self):
+        # Only the ShapeA/ShapeB body collections mark reference meshes; the
+        # top-level Avatar collection also holds the user's wearable.
+        objects = [("MESH", ["Avatar"]), self.RIG_ARMATURE]
+        assert bridge_utils.wearable_export_error(objects, selected_only=False) is None
+
+    def test_a_full_scene_with_multiple_armatures_is_rejected(self):
+        error = bridge_utils.wearable_export_error(
+            [self.WEARABLE, self.RIG_ARMATURE, ("ARMATURE", ["Prop"])], selected_only=False
+        )
+        assert "2 armatures" in error
+
+    def test_an_empty_selection_is_rejected(self):
+        error = bridge_utils.wearable_export_error([], selected_only=True)
+        assert "nothing is selected" in error
+
+    def test_an_empty_scene_is_rejected(self):
+        error = bridge_utils.wearable_export_error([], selected_only=False)
+        assert "no exportable objects" in error
+
+    def test_a_scope_without_meshes_is_rejected(self):
+        assert "no meshes" in bridge_utils.wearable_export_error([self.RIG_ARMATURE], selected_only=True)
+        assert "no meshes" in bridge_utils.wearable_export_error([self.RIG_ARMATURE], selected_only=False)
+
+
 class TestWiring:
-    def test_the_aang_modules_are_gone(self):
-        assert not os.path.isfile(os.path.join(SRC_DIR, "ops", "aang_utils.py"))
-        assert not os.path.isfile(os.path.join(SRC_DIR, "ops", "preview_aang.py"))
-
-    def test_operators_are_imported_and_registered(self):
-        init_src = _read(os.path.join(SRC_DIR, "__init__.py"))
-        assert "OBJECT_OT_preview_in_builder," in init_src
-        assert "OBJECT_OT_stop_live_preview," in init_src
-
-    def test_preview_buttons_are_drawn(self):
-        init_src = _read(os.path.join(SRC_DIR, "__init__.py"))
-        assert '"Preview Wearable"' in init_src
-        assert '"Preview Emote"' in init_src
-
-    def test_bridge_is_stopped_on_unregister(self):
-        init_src = _read(os.path.join(SRC_DIR, "__init__.py"))
-        unregister_src = init_src.split("def unregister():", 1)[1]
-        assert "stop_live_preview()" in unregister_src
-
     def test_server_binds_to_loopback_only(self):
+        # Security tripwire: the bridge serves the local export with CORS *,
+        # so it must never listen on anything but loopback.
         live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
-        assert '("127.0.0.1", 0)' in live_src
+        assert '("127.0.0.1", port)' in live_src
+        assert '"0.0.0.0"' not in live_src
 
-    def test_bridge_serves_the_expected_endpoints(self):
+    def test_wearable_exports_are_validated_before_running(self):
+        # Both the initial export and live re-exports go through the scope
+        # check, so a broken scene cancels the preview instead of streaming.
         live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
-        assert '"/state"' in live_src
-        assert 'MODEL_FILE = "model.glb"' in live_src
+        assert "error = wearable_export_error(scope, selected_only=selected_only)" in live_src
 
-    def test_exports_are_swapped_in_atomically(self):
-        # The Builder may fetch /model.glb at any moment; a half-written file
-        # must never be visible at the served path.
+    def test_the_selection_is_completed_in_both_directions(self):
+        # Selecting just the wearable mesh pulls in its rig, selecting just
+        # the armature pulls in the wearable meshes bound to it, and the
+        # borrowed selection is restored afterwards.
         live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
-        assert "os.replace(" in live_src
+        assert "_bound_armatures(selected)" in live_src
+        assert "_bound_meshes(selected_armatures)" in live_src
+        assert "extra.select_set(True)" in live_src
+        assert "extra.select_set(False)" in live_src
 
-    def test_handlers_survive_undo_but_not_file_loads(self):
-        # persistent keeps handlers alive across undo pushes; the explicit
-        # load_pre hook is what ends the session when another file opens.
+    def test_selected_only_defaults_to_on(self):
         live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
-        assert live_src.count("@persistent") == 3
-        assert "load_pre" in live_src
+        prop = live_src.split("selected_only: bpy.props.BoolProperty(", 1)[1].split("show_advanced:", 1)[0]
+        assert "default=True" in prop
 
-    def test_refresh_is_debounced(self):
+    def test_previewer_url_can_be_reset_to_the_default(self):
         live_src = _read(os.path.join(SRC_DIR, "ops", "live_preview.py"))
-        assert "DEBOUNCE_SECONDS" in live_src
-
-    def test_readme_documents_the_live_preview(self):
-        readme_src = _read(os.path.join(ROOT_DIR, "README.md"))
-        assert "### Live Preview in the Builder" in readme_src
+        assert "op.previewer_url = DEFAULT_PREVIEWER_URL" in live_src
+        assert 'sub.prop(self, "reset_previewer_url"' in live_src

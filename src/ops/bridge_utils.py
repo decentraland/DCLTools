@@ -9,9 +9,9 @@ be exercised without Blender.
 """
 
 import json
+from urllib.parse import quote
 
-DEFAULT_BUILDER_URL = "https://builder.decentraland.org"
-LIVE_PREVIEW_PATH = "/live-preview"
+DEFAULT_PREVIEWER_URL = "https://decentraland.org/builder/live-preview"
 
 # Wearable categories accepted by the Builder (WearableCategory in @dcl/schemas).
 WEARABLE_CATEGORIES = (
@@ -36,11 +36,11 @@ WEARABLE_CATEGORIES = (
 )
 
 
-def normalize_builder_url(raw):
-    """Turn whatever was pasted into a usable Builder origin.
+def normalize_previewer_url(raw):
+    """Turn whatever was pasted into a usable previewer page URL.
 
-    Accepts a bare host ("builder.decentraland.zone"), a full URL, and URLs
-    that still carry a path, query or fragment.
+    Accepts a bare host, a full URL, and URLs that still carry a query or
+    fragment. The path is kept: the value is the page itself.
     """
     value = (raw or "").strip()
     if not value:
@@ -52,12 +52,65 @@ def normalize_builder_url(raw):
     return value.split("?", 1)[0].split("#", 1)[0].rstrip("/")
 
 
-def live_preview_url(base_url):
-    """The Builder page to open for a given deployment."""
-    root = normalize_builder_url(base_url)
-    if not root:
-        raise ValueError("Builder URL is empty")
-    return f"{root}{LIVE_PREVIEW_PATH}"
+def live_preview_url(page_url, bridge_url=""):
+    """The previewer page to open.
+
+    ``bridge_url`` is handed over as the ``bridge`` query param so the page
+    connects to the local bridge without the user pasting anything.
+    """
+    url = normalize_previewer_url(page_url)
+    if not url:
+        raise ValueError("Previewer URL is empty")
+    if bridge_url:
+        url += f"?bridge={quote(bridge_url, safe='')}"
+    return url
+
+
+# Body-mesh collections created by Import DCL Rig. Meshes in them are only a
+# problem for full-scene exports: an explicit selection of them is a
+# deliberate body_shape/skin wearable.
+REFERENCE_AVATAR_COLLECTIONS = frozenset({"Avatar_ShapeA", "Avatar_ShapeB"})
+
+
+def wearable_export_error(objects, *, selected_only):
+    """Why exporting ``objects`` would show a broken wearable preview, or None.
+
+    ``objects`` describes everything the GLB export would include, as
+    ``(object_type, collection_names)`` pairs. An explicit selection is
+    trusted beyond being non-empty and containing a mesh; only full-scene
+    exports are checked for content that cannot belong to a wearable.
+    """
+    objects = list(objects)
+
+    if not objects:
+        return (
+            "nothing is selected — select the wearable mesh"
+            if selected_only
+            else "the scene has no exportable objects"
+        )
+
+    if not any(obj_type == "MESH" for obj_type, _ in objects):
+        return (
+            "the selection contains no meshes and nothing is bound to the selected armature — select the wearable mesh"
+            if selected_only
+            else "the scene contains no meshes"
+        )
+
+    if selected_only:
+        return None
+
+    hint = 'enable "Selected Only" and select the wearable mesh'
+
+    if any(
+        REFERENCE_AVATAR_COLLECTIONS.intersection(colls) for obj_type, colls in objects if obj_type == "MESH"
+    ):
+        return f"the export would include the reference avatar's body — {hint}"
+
+    armature_count = sum(1 for obj_type, _ in objects if obj_type == "ARMATURE")
+    if armature_count > 1:
+        return f"the export would include {armature_count} armatures, but a wearable uses at most one — {hint}"
+
+    return None
 
 
 def readable_category(name):

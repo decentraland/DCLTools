@@ -89,7 +89,7 @@ hot-swaps in place: no page reloads, nothing uploaded.
 | **Stop Live Preview** | Shut down the local bridge and delete the exported files |
 
 **How it works:** the add-on exports a GLB to a temporary folder and serves a tiny local bridge bound to
-`127.0.0.1` on an OS-assigned port:
+`127.0.0.1` (OS-assigned port, or the one set under *Advanced*):
 
 - `GET /state` — `{"version", "type", "name", "category"}`
 - `GET /model.glb` — the latest export
@@ -100,14 +100,15 @@ edits re-export after a short pause (~1.5 s of inactivity), so you can sculpt, t
 and watch the avatar update. Exports are swapped in atomically, so the page never sees a half-written file. The
 session ends when you open another .blend, click **Stop Live Preview**, or disable the add-on.
 
-**Connecting:** the preview operator opens `<Builder URL>/live-preview`; paste the bridge address Blender reports
-(e.g. `http://localhost:54321`) into the page's *Bridge URL* field and click **Connect**. The Builder URL is saved
-in **Edit > Preferences > Add-ons > Decentraland Tools**, and a locally served Builder
-(`http://localhost:3000`) works too.
+**Connecting:** the preview operator opens `<Previewer URL>?bridge=<bridge URL>`, so the page connects to the
+bridge on its own — nothing to paste. The Previewer URL defaults to `https://decentraland.org/builder/live-preview`,
+is saved in **Edit > Preferences > Add-ons > Decentraland Tools**, and a locally served page
+(`http://localhost:3000/live-preview`) works too.
 
 **Options:** the dialog stays minimal on purpose — the category the preview starts as and *Selected Only* for
-wearable exports (include the armature when the mesh is skinned). Everything else lives on the Builder page:
-category and overrides, body shape, avatar randomization, emote playback and looping.
+wearable exports (include the armature when the mesh is skinned), plus an *Advanced* section for the Previewer URL
+and the bridge port. Everything else lives on the Builder page: category and overrides, body shape, avatar
+randomization, emote playback and looping.
 
 ### Emotes
 

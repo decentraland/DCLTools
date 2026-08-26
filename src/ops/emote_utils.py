@@ -103,13 +103,15 @@ def collect_armature_geometry(context, armature_obj):
         seen.add(obj.name)
         found.append(obj)
 
-    def add_descendants(parent):
-        for obj in context.scene.objects:
-            if obj.parent is parent:
-                add(obj)
-                add_descendants(obj)
+    children = {}
+    for obj in context.scene.objects:
+        children.setdefault(obj.parent, []).append(obj)
 
-    add_descendants(armature_obj)
+    stack = list(children.get(armature_obj, []))
+    while stack:
+        obj = stack.pop()
+        add(obj)
+        stack.extend(children.get(obj, []))
 
     for obj in context.scene.objects:
         for modifier in getattr(obj, "modifiers", []):
@@ -147,6 +149,15 @@ def collect_emote_export_objects(context, avatar_armature, prop_armatures=None):
             add(obj)
 
     return objects
+
+
+def boundary_channels(pose_bone):
+    """The channel data paths an emote boundary key must cover for a bone."""
+    rotation = {
+        "QUATERNION": "rotation_quaternion",
+        "AXIS_ANGLE": "rotation_axis_angle",
+    }.get(pose_bone.rotation_mode, "rotation_euler")
+    return ("location", rotation, "scale")
 
 
 def get_deform_pose_bones(armature_obj):

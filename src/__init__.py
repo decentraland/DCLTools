@@ -330,16 +330,16 @@ class DCLToolsPreferences(bpy.types.AddonPreferences):
 
     bl_idname = __package__
 
-    builder_url: bpy.props.StringProperty(
-        name="Builder URL",
-        description="Builder deployment whose Live Preview page is opened by Preview Wearable / Preview Emote",
+    previewer_url: bpy.props.StringProperty(
+        name="Previewer URL",
+        description="Live Preview page opened by Preview Wearable / Preview Emote",
         default="",
     )
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "builder_url")
-        layout.label(text="A locally served Builder (http://localhost:3000) works too.", icon="INFO")
+        layout.prop(self, "previewer_url")
+        layout.label(text="A locally served page (http://localhost:3000/live-preview) works too.", icon="INFO")
         layout.separator()
         layout.operator(OBJECT_OT_stop_live_preview.bl_idname, icon="X")
 

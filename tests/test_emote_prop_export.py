@@ -153,6 +153,16 @@ class TestEmoteExportObjectSet:
         assert [obj.name for obj in objects] == ["Armature"]
 
 
+class TestBoundaryChannels:
+    def test_rotation_channel_follows_the_bone_mode(self):
+        bone = type("FakePoseBone", (), {"rotation_mode": "QUATERNION"})()
+        assert emote_utils.boundary_channels(bone) == ("location", "rotation_quaternion", "scale")
+        bone.rotation_mode = "AXIS_ANGLE"
+        assert emote_utils.boundary_channels(bone) == ("location", "rotation_axis_angle", "scale")
+        bone.rotation_mode = "XYZ"
+        assert emote_utils.boundary_channels(bone) == ("location", "rotation_euler", "scale")
+
+
 class TestExporterWiring:
     def test_exporter_uses_the_prop_aware_object_set(self):
         src = _read(os.path.join(SRC_DIR, "ops", "export_emote_glb.py"))
