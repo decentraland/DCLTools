@@ -498,9 +498,13 @@ class OBJECT_OT_preview_in_builder(bpy.types.Operator):
             self.report({"ERROR"}, f"Could not open the browser: {exc}")
             return {"CANCELLED"}
 
+        bridge_url = f"http://127.0.0.1:{_server.port}"
+        # The Builder page can't discover the OS-assigned port, so hand the
+        # address over via the clipboard for its Bridge URL field.
+        context.window_manager.clipboard = bridge_url
         self.report(
             {"INFO"},
-            f"Bridge on 127.0.0.1:{_server.port} — connect the Builder page to it; refresh is automatic.",
+            f"Bridge on {bridge_url} (copied to clipboard) — paste it into the Builder page's Bridge URL field.",
         )
         return {"FINISHED"}
 
